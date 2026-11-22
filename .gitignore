@@ -1,0 +1,14 @@
+# 个人求职产物与本地配置，不提交仓库
+profile.json
+ledger.json
+candidates.json
+ranked.json
+batch.json
+details.jsonl
+hold.json
+decision_sheet.xlsx
+annotation_result.json
+
+# Python 缓存
+__pycache__/
+*.pyc
