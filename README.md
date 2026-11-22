@@ -1,8 +1,10 @@
-# boss姥爷（boss-job-apply）· BOSS 直聘投递助手（豆包工作区技能）
+# boss姥爷（boss-job-apply）· BOSS 直聘投递助手（多宿主通用技能）
 
 > 显示名：**boss姥爷**；技能标识符（目录名/frontmatter `name`）：`boss-job-apply`。平台要求标识符只能用小写字母、数字和连字符，因此中文名只作为显示名写在 `metadata.display_name` 里，文件夹名保持 `boss-job-apply` 不可改。
 
-一个可复用的豆包工作区技能：在 BOSS 直聘网页端按个人画像检索岗位、逐条进详情页复核，给明确对口的岗位发默认招呼语；拿不准的边缘岗位挂起，生成含完整 JD 的拍板表交本人人工标注后再执行；全程台账去重、当日复盘，标注结论回写画像规则，越用越准。
+一个与宿主 AI 工具解耦的通用技能：在 BOSS 直聘网页端按个人画像检索岗位、逐条进详情页复核，给明确对口的岗位发默认招呼语；拿不准的边缘岗位挂起，生成含完整 JD 的拍板表交本人人工标注后再执行；全程台账去重、当日复盘，标注结论回写画像规则，越用越准。
+
+技能本体由一份指令文件（`SKILL.md`）+ 一组 Python CLI 脚本 + 规则参考 + 画像模板组成，可安装到豆包工作区、Claude Code、Cursor、Codex、Windsurf 及其他具备浏览器自动化与终端能力的 AI 工具中。
 
 > 技能本身只包含通用流程与占位模板，**不内置任何人的简历、公司黑名单、联系方式等个人信息**；所有个人配置都在你本地的 `profile.json` 里，不随技能文件提交。
 
@@ -34,14 +36,15 @@
 - **台账去重**：已投、已跳过的岗位自动去重，不重复打招呼；随时查看累计统计。
 - **人工拍板闭环**：待定岗位导出 xlsx 拍板表（附完整 JD），标注「可投/不投」后解析分组，按标注执行并沉淀新规则。
 - **规则与个人配置分离**：流程写死在技能里，个人方向、薪资带、词表、短板全部读本地 `profile.json`。
+- **宿主无关**：浏览器操作、脚本执行、表格标注都走中性约定，不绑定某一款 AI 工具的内部接口。
 
 ## 二、仓库结构
 
 ```text
 boss-job-apply-repo/
 ├── README.md                        # 本说明文档（仓库根目录，安装时不用复制）
-└── boss-job-apply/                  # 技能文件夹，整体复制到 .user_skills/
-    ├── SKILL.md                     # 主流程、安装说明、工作流（触发后必读）
+└── boss-job-apply/                  # 技能文件夹，整体复制到宿主工具的指令目录
+    ├── SKILL.md                     # 主流程、安装说明、工作流（加载后必读）
     ├── assets/
     │   └── profile.example.json    # 画像配置模板，复制为 profile.json 后填写
     ├── references/
@@ -54,11 +57,13 @@ boss-job-apply-repo/
         └── parse_annotation.py      # 解析标注表，拆 apply / exclude / blank
 ```
 
+> 技能文件夹内 `scripts/`、`references/`、`assets/` 的相对引用不能拆散；`README.md` 是给人看的说明，不需要复制进指令目录。
+
 ## 三、环境要求
 
 | 项 | 要求 |
 | --- | --- |
-| 运行环境 | 豆包工作区（桌面端），复用其内置浏览器 |
+| 宿主 AI 工具 | 具备三项能力：**浏览器自动化**（内置浏览器、Playwright、浏览器 MCP 等均可）、**终端命令执行**、**本地文件读写** |
 | Python | 3.8 及以上；除 `openpyxl` 外脚本仅用标准库 |
 | 依赖安装 | `pip install openpyxl`（仅拍板表生成/解析需要；不跑拍板表可先不装） |
 | 账号 | 本人 BOSS 直聘账号（网页端已登录） |
@@ -66,29 +71,54 @@ boss-job-apply-repo/
 
 ## 四、安装（保姆级）
 
-1. **获取代码**：克隆或下载本仓库到本地，例如解压到任意目录。
-2. **找到技能目录**：进入仓库里的 `boss-job-apply/` 文件夹，确认能看到 `SKILL.md`。
-3. **复制到用户技能目录**：把整个 `boss-job-apply/` 文件夹复制到豆包工作区的用户技能目录：
+### 4.1 获取代码
 
-   - Windows：`C:\Users\<你的用户名>\AppData\Local\DoubaoWork\User Data\<Profile>\.doubaowork\agent_mode\workspace\.user_skills\`
-   - macOS：`~/Library/Application Support/DoubaoWork/User Data/<Profile>/.doubaowork/agent_mode/workspace/.user_skills/`
+克隆或下载本仓库到本地，例如解压到任意目录；进入仓库里的 `boss-job-apply/` 文件夹，确认能看到 `SKILL.md`。
 
-   该目录与内置 `.skills/` 平级；若 `.user_skills` 不存在，手动新建即可。
-4. **文件夹名必须保持 `boss-job-apply`**，与 `SKILL.md` 顶部 frontmatter 的 `name` 一致，不要改名。
-5. **装依赖**（可选但建议）：终端执行 `pip install openpyxl`。
-6. **重启/刷新豆包工作区**后，技能即被识别；对话中出现「BOSS 直聘 / 打招呼 / 投递 / 筛岗」等表述时自动加载，也可以直接说「按 boss-job-apply 流程跑今日投递」。
+### 4.2 复制到宿主工具的指令目录
 
-> 注意：仓库根目录的 `README.md` 是给人看的说明文档，**不需要复制进 `.user_skills`**；`boss-job-apply/` 子文件夹里的内容才是技能本体。
+保持 `boss-job-apply/` 整目录原样复制，文件夹名必须保持 `boss-job-apply`，与 `SKILL.md` 顶部 frontmatter 的 `name` 一致。下表是各常见工具的常见约定，**具体路径以宿主工具官方文档为准**：
+
+| 宿主工具 | 指令放置位置 | 说明 |
+| --- | --- | --- |
+| 豆包工作区 | `.user_skills/boss-job-apply/`（与内置 `.skills/` 平级；目录不存在则手动新建） | 整目录复制，工作区重启/刷新后自动识别 |
+| Claude Code | `~/.claude/skills/boss-job-apply/` | 整目录复制；脚本路径按技能目录相对引用 |
+| Cursor | 项目 `.cursor/rules/` | 把 `SKILL.md` 内容作为规则加载；`scripts/`、`assets/` 放项目固定目录，并在规则里写清相对路径 |
+| Codex / OpenAI 类 | 在项目 `AGENTS.md` 中引用本 `SKILL.md` | 脚本与模板随仓库存放 |
+| Windsurf | `.windsurf/rules/` | 同 Cursor 思路：规则文件引用 `SKILL.md`，脚本保留相对目录 |
+| 其他 / 自研 Agent | 全局或项目指令目录 | 把 `SKILL.md` 作为系统/项目指令加载，同目录保留 `scripts/`、`references/`、`assets/` |
+
+豆包工作区的常见本地路径：
+
+- Windows：`C:\Users\<你的用户名>\AppData\Local\DoubaoWork\User Data\<Profile>\.doubaowork\agent_mode\workspace\.user_skills\`
+- macOS：`~/Library/Application Support/DoubaoWork/User Data/<Profile>/.doubaowork/agent_mode/workspace/.user_skills/`
+
+### 4.3 安装依赖（可选但建议）
+
+终端执行：`pip install openpyxl`。只用预筛/台账、不跑拍板表可以先不装。
+
+### 4.4 触发方式
+
+重启或刷新宿主工具后，在对话中描述「BOSS 直聘 / 打招呼 / 投递 / 筛岗」等任务即可加载本指令；也可以直接说「按 boss-job-apply 流程跑今日投递」。
+
+### 4.5 宿主适配约定
+
+技能不绑定宿主内部接口，各宿主按以下约定对接：
+
+- **浏览器**：宿主用自己的浏览器自动化能力打开页面、滚动列表、翻页、读取详情、点击「立即沟通」；验证码、扫码、设备验证一律交本人接管。
+- **终端**：脚本通过宿主的终端/命令执行能力运行，命令见第八节；工作目录为本次投递任务的本地文件夹。
+- **文件**：`profile.json`、`candidates.json`、`ledger.json`、拍板表等产物都落在工作目录，技能目录本身只读复用。
+- **标注渠道**：拍板表 xlsx 可导入任意在线表格或本地 Excel，宿主任选本人常用的协作渠道交付标注。
 
 ## 五、第一步：登录 BOSS 直聘
 
-技能通过内置浏览器操作网页端，登录这一步必须由你本人完成，技能不会也不能绕过登录。
+技能通过宿主工具的浏览器能力操作网页端，登录这一步必须由你本人完成，技能不会也不能绕过登录。
 
 ### 5.1 打开网页
 
-- 方式一（推荐）：直接对豆包说「打开 BOSS 直聘岗位页」，技能会用浏览器自动化导航到岗位列表页：
+- 方式一（推荐）：直接对宿主助手说「打开 BOSS 直聘岗位页」，由其浏览器自动化导航到岗位列表页：
   `https://www.zhipin.com/web/geek/jobs?city=<城市码>&query=<关键词>`
-- 方式二：自己在内置浏览器地址栏输入 `https://www.zhipin.com` 回车。
+- 方式二：自己在宿主浏览器地址栏输入 `https://www.zhipin.com` 回车。
 
 ### 5.2 完成登录
 
@@ -118,10 +148,17 @@ boss-job-apply-repo/
 
 1. 在本次工作目录（你跑投递任务的本地文件夹）中，复制一份模板：
 
-   - 源文件：技能目录 `boss-job-apply/assets/profile.example.json`
+   - 源文件：技能目录 `boss-job-apply/assets/profile.example.json`（技能目录在本机的位置以已安装技能所在文件夹为准，常见路径为 `.user_skills/boss-job-apply/`、`~/.claude/skills/boss-job-apply/` 或 `~/.dsh/skills/boss-job-apply/`）
    - 目标文件：工作目录下的 `profile.json`
 
-2. 用文本编辑器打开 `profile.json`，按下表逐项填写。模板里的 `<...>` 都是占位符，必须替换；带示例数值的字段（如薪资带）也要换成你自己的。
+2. **必填字段**：城市与城市码、薪资带、方向关键词、主/副栈、弱点、排除词表、活跃度标签。模板里的 `<...>` 都是占位符，必须替换；带示例数值的字段（如薪资带）也要换成你自己的。
+
+3. **信息采集与录入顺序**：
+   - 先在已登录的本人 BOSS 会话里，直接打开你的主页/在线简历，采集页面可见的城市、工作年限、学历、技术栈、期望薪资、求职状态等信息回填 `profile.json`；只读取你本人账号可见的内容，不改写 BOSS 简历，不采集未公开信息；
+   - 页面采集不到、或页面信息与你当前情况不符的字段，通过澄清反问逐项确认后录入；你当场补充的信息直接采用；
+   - 不会替你臆造年限、学历、技术栈、薪资、弱点等事实。
+
+4. **你明确拒绝填写的字段**：保留模板占位符，相关岗位在详情复核时降级为人工判断，不会按默认值擅自放行。
 
 ### 6.2 字段逐项说明
 
@@ -202,7 +239,7 @@ boss-job-apply-repo/
 | §6 拍板闭环 | hold 池生成拍板表 → 人工标注 → 解析分组 → 补投/记跳过 → 规则回写 | `decision_sheet.xlsx`、`annotation_result.json` |
 | §7 当日复盘 | 统计 applied/skipped、方向与薪资分布、回复情况，对照画像找偏差 | — |
 
-典型命令（在工作目录下执行）：
+典型命令（在工作目录下执行；脚本路径按技能实际安装位置调整）：
 
 ```bash
 # 台账初始化（首次）
@@ -263,7 +300,7 @@ python scripts/ledger.py skip-append --eid EID --reason "排除原因" --company
 拿不准的岗位（经验深度待核、外包嫌疑、方向边缘、硬门槛模糊等）**不自行放行也不自行排除**，走下面的闭环：
 
 1. 待定岗位攒批后，用 `build_decision_sheet.py` 生成 `decision_sheet.xlsx`，列：序号/公司/岗位/薪资/经验/学历/地点/待定原因/岗位链接/完整 JD/你的决定。
-2. 把 xlsx 导入飞书表格（或本地 Excel），逐条在「你的决定」列标注 **可投** 或 **不投**；完整 JD 已附在表里，方便核实。
+2. 把 xlsx 导入任意在线表格（飞书表格、Google Sheets、企业微信表格等）或本地 Excel，逐条在「你的决定」列标注 **可投** 或 **不投**；完整 JD 已附在表里，方便核实。
 3. 标注回表后用 `parse_annotation.py` 解析：
    - `apply`：补打招呼并记台账；
    - `exclude`：记台账 skipped 并写原因；
@@ -306,6 +343,9 @@ A：只要存在待核疑点（主体性质、驻场痕迹、方向边界、经�
 
 **Q：可以把填好的 profile.json 一起提交到仓库吗？**
 A：不建议。`profile.json` 含个人意向、栈和短板，只保留在本地工作目录；仓库里只提交占位模板 `profile.example.json`。
+
+**Q：我的宿主工具不在第四节的映射表里，能装吗？**
+A：可以。只要宿主能加载外部指令文件（系统提示/项目规则/技能目录）、能执行终端命令、能控制浏览器，把 `SKILL.md` 作为指令加载、整目录保留 `scripts/`、`references/`、`assets/` 即可；脚本命令与浏览器操作约定见第四、八节。
 
 ## 十三、免责声明
 
