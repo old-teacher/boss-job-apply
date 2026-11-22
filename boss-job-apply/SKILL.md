@@ -17,12 +17,13 @@ metadata:
 
 1. **保持整目录**：`boss-job-apply/` 原样复制，`scripts/`、`references/`、`assets/` 之间的相对引用不能拆散；文件夹名与 frontmatter `name` 一致（`boss-job-apply`）。
 2. **按宿主工具放置**（常见约定，具体路径以宿主官方文档为准）：
-   - 豆包工作区：`.user_skills/boss-job-apply/`（与内置 `.skills` 平级）；
-   - Claude Code：`~/.claude/skills/boss-job-apply/`；
-   - Cursor：把本指令放入项目 `.cursor/rules/`，脚本与模板随项目固定目录存放；
-   - Codex / OpenAI 类：在 `AGENTS.md` 中引用本 `SKILL.md`，脚本随仓库存放；
-   - Windsurf：放入 `.windsurf/rules/`；
-   - 其他工具：把 `SKILL.md` 作为全局或项目指令加载，同目录保留 `scripts/`、`references/`、`assets/`。
+   - 豆包工作区（✅ 已实测）：`.user_skills/boss-job-apply/`（与内置 `.skills` 平级）；
+   - Claude Code（⚠️ 通用适配目标，未逐一实测）：`~/.claude/skills/boss-job-apply/`；
+   - Cursor（⚠️ 待适配）：把本指令放入项目 `.cursor/rules/`，脚本与模板随项目固定目录存放；
+   - Codex / OpenAI 类（⚠️ 待适配）：在 `AGENTS.md` 中引用本 `SKILL.md`，脚本随仓库存放；
+   - Windsurf（⚠️ 待适配）：放入 `.windsurf/rules/`；
+   - 其他工具（⚠️ 待适配）：把 `SKILL.md` 作为全局或项目指令加载，同目录保留 `scripts/`、`references/`、`assets/`。
+   - 目前推荐且验证可用的宿主只有豆包办公；其他宿主装载后若指令不识别、脚本路径或浏览器调用不通，按本节适配约定对照宿主文档微调。
 3. **依赖**：Python 3；脚本仅用标准库；拍板表生成/解析需要 `openpyxl`（未安装时 `pip install openpyxl`）。
 4. **首次配置**：复制 `assets/profile.example.json` 为工作目录 `profile.json`，初始化规则见 §0.1。
 5. **触发方式**：在宿主对话中描述 BOSS 直聘/打招呼/投递/筛岗等任务时加载本指令；也可直接说「按 boss-job-apply 流程跑今日投递」。

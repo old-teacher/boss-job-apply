@@ -4,7 +4,7 @@
 
 一个与宿主 AI 工具解耦的通用技能：在 BOSS 直聘网页端按个人画像检索岗位、逐条进详情页复核，给明确对口的岗位发默认招呼语；拿不准的边缘岗位挂起，生成含完整 JD 的拍板表交本人人工标注后再执行；全程台账去重、当日复盘，标注结论回写画像规则，越用越准。
 
-技能本体由一份指令文件（`SKILL.md`）+ 一组 Python CLI 脚本 + 规则参考 + 画像模板组成，可安装到豆包工作区、Claude Code、Cursor、Codex、Windsurf 及其他具备浏览器自动化与终端能力的 AI 工具中。
+技能本体由一份指令文件（`SKILL.md`）+ 一组 Python CLI 脚本 + 规则参考 + 画像模板组成；当前在**豆包办公（豆包工作区）**实测可用，流程与脚本与宿主解耦，也可适配其他具备浏览器自动化与终端能力的 AI 工具（见 4.2）。
 
 > 技能本身只包含通用流程与占位模板，**不内置任何人的简历、公司黑名单、联系方式等个人信息**；所有个人配置都在你本地的 `profile.json` 里，不随技能文件提交。
 
@@ -75,33 +75,42 @@ boss-job-apply-repo/
 
 克隆或下载本仓库到本地，例如解压到任意目录；进入仓库里的 `boss-job-apply/` 文件夹，确认能看到 `SKILL.md`。
 
-### 4.2 复制到宿主工具的指令目录
+### 4.2 推荐使用的 AI 工具
 
-保持 `boss-job-apply/` 整目录原样复制，文件夹名必须保持 `boss-job-apply`，与 `SKILL.md` 顶部 frontmatter 的 `name` 一致。下表是各常见工具的常见约定，**具体路径以宿主工具官方文档为准**：
+| 状态 | 工具 | 说明 |
+| --- | --- | --- |
+| ✅ 推荐 / 已实测 | 豆包办公（豆包工作区） | 本技能在豆包办公桌面端实测通过：浏览器自动化、终端执行、本地文件读写均可跑通；按 4.3 表中「豆包工作区」一行放置即可 |
+| ⚠️ 通用适配目标，未逐一实测 | Claude Code、Cursor、Codex / OpenAI、Windsurf 及其他自研 Agent | 技能流程与 Python 脚本与宿主解耦，理论上可装载到任意具备浏览器自动化、终端命令、文件读写能力的工具；但这些宿主尚未逐一实测，指令加载格式、浏览器调用方式可能需要按宿主官方文档微调 |
+
+> 目前官方推荐且验证可用的宿主只有**豆包办公**；其他工具装载后若出现指令不识别、脚本路径或浏览器调用不通，按 4.6 的宿主适配约定对照微调。
+
+### 4.3 复制到宿主工具的指令目录
+
+保持 `boss-job-apply/` 整目录原样复制，文件夹名必须保持 `boss-job-apply`，与 `SKILL.md` 顶部 frontmatter 的 `name` 一致。下表是各常见工具的常见约定，**具体路径以宿主工具官方文档为准**；除豆包工作区已实测外，其余为通用适配约定，未逐一实测：
 
 | 宿主工具 | 指令放置位置 | 说明 |
 | --- | --- | --- |
-| 豆包工作区 | `.user_skills/boss-job-apply/`（与内置 `.skills/` 平级；目录不存在则手动新建） | 整目录复制，工作区重启/刷新后自动识别 |
-| Claude Code | `~/.claude/skills/boss-job-apply/` | 整目录复制；脚本路径按技能目录相对引用 |
-| Cursor | 项目 `.cursor/rules/` | 把 `SKILL.md` 内容作为规则加载；`scripts/`、`assets/` 放项目固定目录，并在规则里写清相对路径 |
-| Codex / OpenAI 类 | 在项目 `AGENTS.md` 中引用本 `SKILL.md` | 脚本与模板随仓库存放 |
-| Windsurf | `.windsurf/rules/` | 同 Cursor 思路：规则文件引用 `SKILL.md`，脚本保留相对目录 |
-| 其他 / 自研 Agent | 全局或项目指令目录 | 把 `SKILL.md` 作为系统/项目指令加载，同目录保留 `scripts/`、`references/`、`assets/` |
+| 豆包工作区（✅ 已实测） | `.user_skills/boss-job-apply/`（与内置 `.skills/` 平级；目录不存在则手动新建） | 整目录复制，工作区重启/刷新后自动识别 |
+| Claude Code（⚠️ 待适配） | `~/.claude/skills/boss-job-apply/` | 整目录复制；脚本路径按技能目录相对引用 |
+| Cursor（⚠️ 待适配） | 项目 `.cursor/rules/` | 把 `SKILL.md` 内容作为规则加载；`scripts/`、`assets/` 放项目固定目录，并在规则里写清相对路径 |
+| Codex / OpenAI 类（⚠️ 待适配） | 在项目 `AGENTS.md` 中引用本 `SKILL.md` | 脚本与模板随仓库存放 |
+| Windsurf（⚠️ 待适配） | `.windsurf/rules/` | 同 Cursor 思路：规则文件引用 `SKILL.md`，脚本保留相对目录 |
+| 其他 / 自研 Agent（⚠️ 待适配） | 全局或项目指令目录 | 把 `SKILL.md` 作为系统/项目指令加载，同目录保留 `scripts/`、`references/`、`assets/` |
 
 豆包工作区的常见本地路径：
 
 - Windows：`C:\Users\<你的用户名>\AppData\Local\DoubaoWork\User Data\<Profile>\.doubaowork\agent_mode\workspace\.user_skills\`
 - macOS：`~/Library/Application Support/DoubaoWork/User Data/<Profile>/.doubaowork/agent_mode/workspace/.user_skills/`
 
-### 4.3 安装依赖（可选但建议）
+### 4.4 安装依赖（可选但建议）
 
 终端执行：`pip install openpyxl`。只用预筛/台账、不跑拍板表可以先不装。
 
-### 4.4 触发方式
+### 4.5 触发方式
 
 重启或刷新宿主工具后，在对话中描述「BOSS 直聘 / 打招呼 / 投递 / 筛岗」等任务即可加载本指令；也可以直接说「按 boss-job-apply 流程跑今日投递」。
 
-### 4.5 宿主适配约定
+### 4.6 宿主适配约定
 
 技能不绑定宿主内部接口，各宿主按以下约定对接：
 
