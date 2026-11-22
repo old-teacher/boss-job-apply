@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""把 hold 池生成人工拍板表 xlsx（完整 JD 在内），供导入飞书表格后本人标注。
+"""把 hold 池生成人工拍板表 xlsx（完整 JD 在内），供导入任意在线表格/Excel 后本人标注。
 
 输入 hold.json:
   [{"eid","company","title","salary","exp","edu","city","reason","url","jd"}, ...]
