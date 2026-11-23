@@ -4,11 +4,13 @@
     "owner": "<姓名>",
     "city": "<目标城市>",
     "city_code": "<城市码，从岗位页 URL 的 city 参数或页面城市选择器读取>",
-    "daily_goal": 20,
+    "daily_goal": 100,
+    "daily_goal_note": "当日计划打招呼的岗位份数；示例 100，按本人目标调整。台账 applied 累计达到该份数即停止继续检索；未达标且关键词全部跑完时，按复盘口径扩大可选方向，不放行硬排除类别。",
     "greeting_policy": "只发送 BOSS 默认招呼语；未获本人明确授权前不发附件简历、不发在线简历；不主动回复招聘方"
   },
   "expectation": {
-    "positions": ["<目标方向 1，如 后端开发>", "<目标方向 2，如 AI 应用开发>"],
+    "positions": ["<目标方向 1，如 AI 应用开发>", "<目标方向 2，如 后端开发>"],
+    "positions_note": "检索关键词/方向列表，按本人简历技术栈可覆盖为准；顺序即轮转顺序。示例方向（请按本人情况替换，不要照抄）：AI 应用开发、AI 应用全栈、全栈开发、Java、后端开发、Python、RAG、LangChain、LangGraph。",
     "salary_band": {
       "lo": 18,
       "hi": 25,
@@ -24,6 +26,17 @@
       "allowed_labels": ["刚刚活跃", "今日活跃", "3日内活跃"],
       "zombie_labels": ["本周活跃", "本月活跃", "半年内活跃", "未活跃", "7日内活跃"]
     }
+  },
+  "search_loop": {
+    "_help": "关键词轮转采集与当日目标控制规则。选词与顺序以 expectation.positions 为准，只列本人简历技术栈可覆盖的方向；每个关键词都必须全量采集到底、翻遍全部页，采完并走完复核投递闭环后再换下一个；每个候选岗位都要走详情复核→三分类→（apply）打招呼闭环；当日 applied 达到 meta.daily_goal 即停止继续检索。",
+    "rotate_positions_in_order": true,
+    "collect_all_before_next": true,
+    "scroll_until_no_new_cards": true,
+    "traverse_all_pages": true,
+    "per_candidate_full_review": true,
+    "stop_when_goal_reached": true,
+    "example_positions": ["AI 应用开发", "AI 应用全栈", "全栈开发", "Java", "后端开发", "Python", "RAG", "LangChain", "LangGraph"],
+    "distribution_note": "当日各方向沟通份数的分布/占比属于本人实战统计，只写进本地 profile.json 或复盘小结，不固化到技能模板；按本人简历可覆盖范围调整。"
   },
   "decision": {
     "_help": "待定岗位拍板与学习饱和配置。hold_batch_size：过程中每攒够该数量就出一批拍板表交本人标注，不必等当日全部跑完。saturation：标注样本积累到阈值且主要场景被覆盖后，同类已知场景可按学到的口径自行判定；未覆盖的新场景仍进拍板表；硬排除类别任何时候都不自动放行。",
