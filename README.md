@@ -2,9 +2,9 @@
 
 > 显示名：**boss姥爷**；技能标识符（目录名/frontmatter `name`）：`boss-job-apply`。平台要求标识符只能用小写字母、数字和连字符，因此中文名只作为显示名写在 `metadata.display_name` 里，文件夹名保持 `boss-job-apply` 不可改。
 
-一个与宿主 AI 工具解耦的通用技能：在 BOSS 直聘网页端按个人画像检索岗位、逐条进详情页复核，给明确对口的岗位发默认招呼语；拿不准的边缘岗位挂起，生成含完整 JD 的拍板表交本人人工标注后再执行；全程台账去重、当日复盘，标注结论回写画像规则，越用越准。
+一个与宿主 AI 工具解耦的通用技能：在 BOSS 直聘网页端按个人画像检索岗位、逐条进详情页复核，给明确对口的岗位发默认招呼语；拿不准的边缘岗位渐进攒批生成含完整 JD 的拍板表交本人人工标注，标注样本覆盖主要场景后同类已知岗位可按学到的口径自行判定；每日启动先复盘昨日岗位与职责并把结论回写配置；全程台账去重、当日复盘，标注结论回写画像规则，越用越准。
 
-技能本体由一份指令文件（`SKILL.md`）+ 一组 Python CLI 脚本 + 规则参考 + 画像模板组成；当前在**豆包办公（豆包工作区）**实测可用，流程与脚本与宿主解耦，也可适配其他具备浏览器自动化与终端能力的 AI 工具（见 4.2）。
+技能本体由一份指令文件（`SKILL.md`）+ 一组 Python CLI 脚本 + 规则参考 + 画像模板 + 版本清单组成；当前在**豆包办公（豆包工作区）**实测可用，流程与脚本与宿主解耦，也可适配其他具备浏览器自动化与终端能力的 AI 工具（见 4.2）。
 
 > 技能本身只包含通用流程与占位模板，**不内置任何人的简历、公司黑名单、联系方式等个人信息**；所有个人配置都在你本地的 `profile.json` 里，不随技能文件提交。
 
@@ -22,9 +22,11 @@
 - [八、脚本命令参考](#八脚本命令参考)
 - [九、筛选规则速览](#九筛选规则速览)
 - [十、拍板表（人工标注）闭环](#十拍板表人工标注闭环)
-- [十一、边界与安全红线](#十一边界与安全红线)
-- [十二、常见问题 FAQ](#十二常见问题-faq)
-- [十三、免责声明](#十三免责声明)
+- [十一、版本与升级](#十一版本与升级)
+- [十二、变更记录](#十二变更记录)
+- [十三、边界与安全红线](#十三边界与安全红线)
+- [十四、常见问题 FAQ](#十四常见问题-faq)
+- [十五、免责声明](#十五免责声明)
 
 ---
 
@@ -33,8 +35,12 @@
 - **多关键词检索 + 全量翻页遍历**：逐个方向关键词搜索，单页滚动到底加载全部卡片，再逐页翻到末页，禁止只看第一屏。
 - **列表层预筛、详情页复核**：列表层先按台账去重、标题/主体排除词、活跃度、薪资交集预筛；真实薪资和完整 JD 一律进详情页读取（列表薪资加密）。
 - **三分类决策**：`apply`（可投）→ 打招呼；`exclude`（硬排除）→ 记台账跳过原因；`hold`（拿不准）→ 进拍板表，不自行放行也不自行排除。
+- **每日复盘回写配置**：启动先回看昨日已沟通岗位的职责/JD 与回复情况，归纳方向、栈、职责命中结论，回写本地画像词表与规则。
+- **渐进式拍板攒批**：投递过程中待定岗位每攒够一批阈值就出一张拍板表，不必等当日全部跑完。
+- **学习饱和后自行判定**：标注样本达到数量门槛且主要场景被覆盖后，同类已知岗位可按学到的口径自行判定；新场景仍交人工拍板，硬排除类别永不自动放行。
 - **台账去重**：已投、已跳过的岗位自动去重，不重复打招呼；随时查看累计统计。
 - **人工拍板闭环**：待定岗位导出 xlsx 拍板表（附完整 JD），标注「可投/不投」后解析分组，按标注执行并沉淀新规则。
+- **版本自检**：启动时对比本地与上游版本，有新版本时提示升级并附改动摘要；不自动覆盖本地文件。
 - **规则与个人配置分离**：流程写死在技能里，个人方向、薪资带、词表、短板全部读本地 `profile.json`。
 - **宿主无关**：浏览器操作、脚本执行、表格标注都走中性约定，不绑定某一款 AI 工具的内部接口。
 
@@ -44,17 +50,20 @@
 boss-job-apply-repo/
 ├── README.md                        # 本说明文档（仓库根目录，安装时不用复制）
 └── boss-job-apply/                  # 技能文件夹，整体复制到宿主工具的指令目录
+    ├── VERSION                      # 当前版本号与上游仓库清单（机器可读，供版本自检）
     ├── SKILL.md                     # 主流程、安装说明、工作流（加载后必读）
     ├── assets/
     │   └── profile.example.json    # 画像配置模板，复制为 profile.json 后填写
     ├── references/
-    │   └── filters.md               # 薪资口径、硬排除清单、复核清单、拍板协议、打分启发式
+    │   ├── filters.md               # 薪资口径、硬排除清单、复核清单、拍板协议、打分启发式
+    │   └── changelog.md             # 各版本改动摘要，升级提示时按版本号提取
     └── scripts/
         ├── salary_match.py          # 单条薪资串与目标带是否有交集判定
         ├── rank_candidates.py       # 台账去重、标题/主体/活跃度预筛、打分排序、切批次
         ├── ledger.py                # 台账初始化、已投/已跳过追加、去重、统计
         ├── build_decision_sheet.py  # 待定池 → 含完整 JD 的拍板表 xlsx
-        └── parse_annotation.py      # 解析标注表，拆 apply / exclude / blank
+        ├── parse_annotation.py      # 解析标注表，拆 apply / exclude / blank
+        └── version_check.py         # 对比本地与上游版本，输出升级提示与改动摘要
 ```
 
 > 技能文件夹内 `scripts/`、`references/`、`assets/` 的相对引用不能拆散；`README.md` 是给人看的说明，不需要复制进指令目录。
@@ -67,7 +76,7 @@ boss-job-apply-repo/
 | Python | 3.8 及以上；除 `openpyxl` 外脚本仅用标准库 |
 | 依赖安装 | `pip install openpyxl`（仅拍板表生成/解析需要；不跑拍板表可先不装） |
 | 账号 | 本人 BOSS 直聘账号（网页端已登录） |
-| 网络 | 能正常访问 `zhipin.com` |
+| 网络 | 能正常访问 `zhipin.com`；版本自检需能访问上游源码仓库（不可达时自动跳过，不阻断投递） |
 
 ## 四、安装（保姆级）
 
@@ -160,7 +169,7 @@ boss-job-apply-repo/
    - 源文件：技能目录 `boss-job-apply/assets/profile.example.json`（技能目录在本机的位置以已安装技能所在文件夹为准，常见路径为 `.user_skills/boss-job-apply/`、`~/.claude/skills/boss-job-apply/` 或 `~/.dsh/skills/boss-job-apply/`）
    - 目标文件：工作目录下的 `profile.json`
 
-2. **必填字段**：城市与城市码、薪资带、方向关键词、主/副栈、弱点、排除词表、活跃度标签。模板里的 `<...>` 都是占位符，必须替换；带示例数值的字段（如薪资带）也要换成你自己的。
+2. **必填字段**：城市与城市码、薪资带、方向关键词、主/副栈、弱点、排除词表、活跃度标签、拍板与学习饱和配置。模板里的 `<...>` 都是占位符，必须替换；带示例数值的字段（如薪资带）也要换成你自己的。
 
 3. **信息采集与录入顺序**：
    - 先在已登录的本人 BOSS 会话里，直接打开你的主页/在线简历，采集页面可见的城市、工作年限、学历、技术栈、期望薪资、求职状态等信息回填 `profile.json`；只读取你本人账号可见的内容，不改写 BOSS 简历，不采集未公开信息；
@@ -208,6 +217,17 @@ boss-job-apply-repo/
 
 > `·13薪/·14薪/年终奖` 不影响区间判定，只取 K 数；`N·薪` 不是工作年限。
 
+#### `decision` —— 拍板与学习饱和配置
+
+| 字段 | 含义 | 填写说明 |
+| --- | --- | --- |
+| `hold_batch_size` | 渐进攒批阈值 | hold 池每达到该数量就生成一批拍板表交你标注，默认 6；不足一批的剩余并入下一批 |
+| `sheet_channel` | 拍板表交付渠道 | 你常用的在线表格 / 本地 Excel / CSV，与标注习惯一致即可 |
+| `saturation.min_annotated_samples` | 饱和样本门槛 | 已标注样本达到该数量才进入饱和判定，默认 30 |
+| `saturation.auto_decide_when_covered` | 饱和后是否允许自行判定 | `true`：主要场景覆盖后同类已知岗位可自行 apply/exclude；`false`：所有 hold 一律人工拍板 |
+| `saturation.coverage_note` | 场景覆盖口径 | 哪些方向/栈/主体性质/排除类别已有样本覆盖；未出现过的新模式不算已覆盖 |
+| `saturation.auto_decide_scope` | 自行判定边界 | 仅已覆盖的同类已知场景可自判；拿不准或新场景仍降级人工拍板；硬排除类别永不自动放行 |
+
 #### `profile` —— 本人简历事实（供复核对照）
 
 | 字段 | 含义 |
@@ -220,6 +240,15 @@ boss-job-apply-repo/
 | `personal_advantages` | 个人优势摘要，从在线简历/附件简历的个人优势栏提炼 |
 | `projects` | 项目经历摘要：项目角色/职责/技术栈/可量化成果，逐条记录 |
 | `weak_points` | 明显短板，例如「某技术栈经验不足多年」「无某方向深度经验」；JD 硬需这些短板经验的岗位排除 |
+
+#### `review` —— 每日复盘沉淀（流程自动回写）
+
+| 字段 | 含义 |
+| --- | --- |
+| `yesterday_summary` | 昨日已沟通岗位的方向/栈/职责/回复或被拒情况归纳，逐条记录 |
+| `sunk_rules` | 复盘得出并已回写到词表/规则的口径变更记录 |
+
+> `review` 块由每日复盘流程更新，不需要手写覆盖；复盘只校准画像与词表，不放宽硬排除清单。
 
 #### `rules` —— 口径规则
 
@@ -243,17 +272,21 @@ boss-job-apply-repo/
 | 步骤 | 做什么 | 产物 |
 | --- | --- | --- |
 | §0 打开浏览器与登录核验 | 导航到岗位页，确认登录态；异常交本人接管 | — |
-| §1 复盘昨日样本 | 打开消息列表回看昨日已沟通岗位与回复，校准当日口径；`ledger.py status` 看累计 | — |
+| §0.2 版本自检 | 对比本地与上游版本，有新版本时提示升级并附改动摘要；未确认前不覆盖本地 | — |
+| §1 复盘昨日岗位与职责 | 回看昨日已沟通岗位的职责/JD 与回复情况，归纳结论回写 `profile.json`；`ledger.py status` 看累计 | `review_yesterday.json` |
 | §2 检索并采集卡片 | 逐关键词搜索 → 单页滚动到底 → 逐页翻到末页 → 按列表顺序采集 | `candidates.json` |
 | §3 预筛与排序 | 台账去重、标题/主体/活跃度/薪资预筛，打分排序切批次 | `ranked.json`、`batch.json` |
 | §4 详情页逐条复核 | 进详情页读真实薪资/学历/经验/地点/完整 JD，三分类 apply/exclude/hold | `details.jsonl`、`hold.json` |
 | §5 打招呼（仅 apply） | 点「立即沟通」发默认招呼语，回写台账 | `ledger.json` |
-| §6 拍板闭环 | hold 池生成拍板表 → 人工标注 → 解析分组 → 补投/记跳过 → 规则回写 | `decision_sheet.xlsx`、`annotation_result.json` |
+| §6 渐进拍板闭环 | hold 攒够一批即出拍板表 → 人工标注 → 解析分组 → 补投/记跳过 → 规则回写；饱和后同类已知场景可自行判定 | `decision_sheet_<日期>_batch<N>.xlsx`、`annotation_result_<批次>.json` |
 | §7 当日复盘 | 统计 applied/skipped、方向与薪资分布、回复情况，对照画像找偏差 | — |
 
 典型命令（在工作目录下执行；脚本路径按技能实际安装位置调整）：
 
 ```bash
+# 版本自检（启动投递任务前先跑）
+python scripts/version_check.py
+
 # 台账初始化（首次）
 python scripts/ledger.py init
 
@@ -261,11 +294,11 @@ python scripts/ledger.py init
 python scripts/rank_candidates.py --input candidates.json --profile profile.json \
   --ledger ledger.json --out ranked.json --batch 12
 
-# 生成拍板表
-python scripts/build_decision_sheet.py --input hold.json --out decision_sheet.xlsx
+# 生成一批拍板表（按批次命名）
+python scripts/build_decision_sheet.py --input hold_batch.json --out decision_sheet_20261123_batch1.xlsx
 
 # 解析本人标注结果
-python scripts/parse_annotation.py --sheet decision_sheet.xlsx --out annotation_result.json
+python scripts/parse_annotation.py --sheet decision_sheet_20261123_batch1.xlsx --out annotation_result_batch1.json
 
 # 台账统计
 python scripts/ledger.py status
@@ -278,8 +311,9 @@ python scripts/ledger.py status
 | `salary_match.py` | `python scripts/salary_match.py "20-25K" --lo 18 --hi 25` | 判定单条薪资串与目标带是否有交集；面议/未注明返回 unknown |
 | `rank_candidates.py` | `python scripts/rank_candidates.py --input candidates.json --profile profile.json --ledger ledger.json --out ranked.json --batch 12` | 去重、预筛、打分排序、切批次；被剔除项进 `ranked.json.dropped` 并写明原因 |
 | `ledger.py` | `python scripts/ledger.py init / status / applied-append / skip-append / done` | 台账初始化、统计、追加已投/已跳过、输出已完成 eid 集合 |
-| `build_decision_sheet.py` | `python scripts/build_decision_sheet.py --input hold.json --out decision_sheet.xlsx` | 待定池生成拍板表 xlsx（完整 JD 在内，决策列留空） |
-| `parse_annotation.py` | `python scripts/parse_annotation.py --sheet decision_sheet.xlsx --out annotation_result.json` | 读取标注结果，拆 `apply` / `exclude` / `blank` 三组 |
+| `build_decision_sheet.py` | `python scripts/build_decision_sheet.py --input hold_batch.json --out decision_sheet_<日期>_batch<N>.xlsx` | 待定池生成拍板表 xlsx（完整 JD 在内，决策列留空） |
+| `parse_annotation.py` | `python scripts/parse_annotation.py --sheet decision_sheet_<日期>_batch<N>.xlsx --out annotation_result_<批次>.json` | 读取标注结果，拆 `apply` / `exclude` / `blank` 三组 |
+| `version_check.py` | `python scripts/version_check.py`（可选 `--repo`、`--branch`） | 对比本地与上游版本；有新版本时输出版本号与改动摘要，网络不可达时跳过不阻断 |
 
 台账追加示例：
 
@@ -311,15 +345,57 @@ python scripts/ledger.py skip-append --eid EID --reason "排除原因" --company
 
 拿不准的岗位（经验深度待核、外包嫌疑、方向边缘、硬门槛模糊等）**不自行放行也不自行排除**，走下面的闭环：
 
-1. 待定岗位攒批后，用 `build_decision_sheet.py` 生成 `decision_sheet.xlsx`，列：序号/公司/岗位/薪资/经验/学历/地点/待定原因/岗位链接/完整 JD/你的决定。
+1. **渐进攒批**：投递过程中持续收集待定岗位；每攒够 `profile.json` 的 `decision.hold_batch_size`（默认 6 条），就用 `build_decision_sheet.py` 生成一批拍板表 `decision_sheet_<日期>_batch<N>.xlsx`，列：序号/公司/岗位/薪资/经验/学历/地点/待定原因/岗位链接/完整 JD/你的决定；不足一批的剩余挂起并入下一批。
 2. 把 xlsx 导入任意在线表格（飞书表格、Google Sheets、企业微信表格等）或本地 Excel，逐条在「你的决定」列标注 **可投** 或 **不投**；完整 JD 已附在表里，方便核实。
 3. 标注回表后用 `parse_annotation.py` 解析：
    - `apply`：补打招呼并记台账；
    - `exclude`：记台账 skipped 并写原因；
    - `blank`：继续挂起，下次再议。
 4. 把本次标注得出的新排除类别、放行口径，回写到本地 `profile.json` 词表和 `filters.md` 对应小节，形成学习闭环。
+5. **学习饱和后自行判定**：已标注样本达到 `saturation.min_annotated_samples` 且主要场景（方向、栈、主体性质、排除类别）被覆盖时，同类已知场景的 hold 岗位可按学到的口径自行 apply/exclude，判定理由记入台账；未覆盖的新方向/新栈/新主体类型仍进拍板表；**硬排除清单类别任何时候都不自动放行**；饱和开关关闭时所有 hold 一律人工拍板。
 
-## 十一、边界与安全红线
+## 十一、版本与升级
+
+### 11.1 版本机制
+
+- 技能根目录 `VERSION` 记录当前版本号（语义化 `major.minor.patch`）、上游仓库与分支；`references/changelog.md` 记录每个版本相对上一版的改动摘要。
+- 每次启动投递任务前，`version_check.py` 读取本地 `VERSION`，拉取上游仓库同路径的 `VERSION` 与 `changelog.md` 做对比：
+  - 上游更新：输出新版本号、本地版本号、区间内各版本的改动条目，并提示你确认后升级；
+  - 已是最新：给出确认提示；
+  - 网络不可达或仓库不可访问：跳过自检，不阻断当日投递。
+- 自检脚本**不会自动覆盖本地技能文件**；升级动作需你本人确认后执行。
+
+### 11.2 怎么升级到新版本
+
+1. 查看自检输出的改动摘要，确认是否升级；
+2. 重新克隆或拉取本仓库最新代码（`git pull`），或重新下载压缩包；
+3. 用仓库里的 `boss-job-apply/` 整目录覆盖宿主指令目录下的同名文件夹（目录见 4.3）；`scripts/`、`references/`、`assets/`、`VERSION` 一并保持原样；
+4. **不要覆盖你的工作目录**：`profile.json`、`ledger.json`、拍板表等本地产物都在工作目录，升级技能目录不影响这些文件；
+5. 覆盖后重跑一次 `version_check.py`，确认本地版本号已与上游一致。
+
+### 11.3 版本号约定
+
+- 新增流程、配置块、脚本或判定口径变更 → 次版本号 +1（如 1.1.0 → 1.2.0）；
+- 文案、修复、脚本兼容性微调 → 修订号 +1；
+- 不兼容的目录结构/协议变更 → 主版本号 +1。
+
+## 十二、变更记录
+
+完整条目见技能内 `references/changelog.md`，这里列出主要版本：
+
+### 1.1.0 — 2026-11-23
+
+- 每日启动先复盘昨日已投递岗位与岗位职责/JD，归纳方向、技术栈、职责命中与回复情况，结论回写 `profile.json` 与复盘小结文件。
+- 待定岗位改为渐进式攒批：投递过程中每达到阈值（默认 6 条）即出一批拍板表交本人标注，不必等当日全部跑完。
+- 新增学习饱和判定：标注样本达到数量门槛且主要场景被覆盖后，同类已知场景可按学到的口径自行判定；未覆盖的新场景仍进拍板表；硬排除类别永不自动放行。
+- 新增版本号清单 `VERSION` 与自检脚本 `version_check.py`：启动时对比本地与上游版本，可感知新版本并提示升级、附改动摘要。
+- `profile.example.json` 新增 `decision`（攒批阈值、拍板渠道、饱和配置）与 `review`（复盘沉淀）配置块。
+
+### 1.0.0 — 2026-11-22
+
+- 初始版本：多关键词检索、滚动加载 + 翻页全量遍历、详情页复核、apply/exclude/hold 三分类、台账去重、人工拍板闭环，以及薪资匹配、排序、台账、拍板表生成、标注解析本地脚本。
+
+## 十三、边界与安全红线
 
 - 只发 BOSS 当前默认招呼语；**不附附件简历、不主动发在线简历**，未获本人另行授权前一律不发；
 - 已显示「继续沟通」的职位不重复点击；不主动回复招聘方聊天，除非本人另行要求；
@@ -330,7 +406,7 @@ python scripts/ledger.py skip-append --eid EID --reason "排除原因" --company
 - 个人信息（姓名、联系方式、简历项目、公司黑名单）只进本地 `profile.json` 工作目录，不写入技能文件、不提交仓库；
 - 控制操作频率，遵守 BOSS 平台规则与用户协议；不批量骚扰招聘方。
 
-## 十二、常见问题 FAQ
+## 十四、常见问题 FAQ
 
 **Q：打开页面跳到登录页/一直掉线？**
 A：登录态失效，按第五节重新扫码或验证码登录；完成后回到岗位列表页继续。
@@ -359,6 +435,12 @@ A：不建议。`profile.json` 含个人意向、栈和短板，只保留在本�
 **Q：我的宿主工具不在第四节的映射表里，能装吗？**
 A：可以。只要宿主能加载外部指令文件（系统提示/项目规则/技能目录）、能执行终端命令、能控制浏览器，把 `SKILL.md` 作为指令加载、整目录保留 `scripts/`、`references/`、`assets/` 即可；脚本命令与浏览器操作约定见第四、八节。
 
-## 十三、免责声明
+**Q：启动时提示有新版本是怎么回事？会自动覆盖我的技能吗？**
+A：`version_check.py` 对比本地 `VERSION` 与上游版本后给出的提示，附改动摘要；不会自动覆盖本地技能目录，需你确认后按第十一节的步骤升级。本地 `profile.json`、台账等工作目录产物不受升级影响。
+
+**Q：什么时候可以不用再给我发拍板样本？**
+A：当已标注样本达到 `saturation.min_annotated_samples` 且主要方向/栈/主体类型都有样本覆盖后，同类已知岗位可由技能按学到的口径自行判定；遇到没覆盖过的新场景，仍会生成拍板表交你标注。硬排除类别任何时候都不会自动放行。
+
+## 十五、免责声明
 
 本技能用于辅助本人在 BOSS 直聘平台上的求职信息整理与常规沟通，使用者须遵守 BOSS 直聘用户协议、相关法律法规与平台频次限制。技能不保证岗位结果、面试邀约或录用；因自动操作引发的账号限制、沟通纠纷等后果由使用者自行承担。所有登录、验证码、简历发送等敏感动作均以本人现场确认或授权为准。
