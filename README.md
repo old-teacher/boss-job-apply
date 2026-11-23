@@ -34,6 +34,8 @@
 
 - **关键词轮转 + 全量翻页遍历**：按画像方向顺序逐个搜索，每个关键词滚动到底加载全部卡片、翻遍末页，采完走完复核投递闭环再换下一个；禁止只看第一屏或前几页。
 - **当日达标停止**：台账已投累计达到 `daily_goal`（示例 100 份）即停止继续检索；关键词跑完仍未达标才复盘扩方向，不放宽硬排除、不降低薪资与活跃度门槛凑数。
+- **拟人化操作**：动作间隔随机、分段滚动、详情页停留读 JD、打招呼前后停顿且两条之间留 2–5 分钟、每小时限速、连续操作后强制休息、只在活跃时段发起——让操作轨迹像真人浏览，而不是脚本批量点击。
+- **风控熔断**：一旦出现验证码/滑块/设备验证/「操作过于频繁」/按钮变灰/发送失败等信号，立即停机交本人，冷却后减半放量，当日熔断达上限即收工；绝不过验证、不换 IP/UA、不多账号、不并发。
 - **列表层预筛、详情页复核**：列表层先按台账去重、标题/主体排除词、活跃度、薪资交集预筛；真实薪资和完整 JD 一律进详情页读取（列表薪资加密）。
 - **三分类决策**：`apply`（可投）→ 打招呼；`exclude`（硬排除）→ 记台账跳过原因；`hold`（拿不准）→ 进拍板表，不自行放行也不自行排除。
 - **每日复盘回写配置**：启动先回看昨日已沟通岗位的职责/JD 与回复情况，归纳方向、栈、职责命中结论，回写本地画像词表与规则。
@@ -56,7 +58,8 @@ boss-job-apply-repo/
     ├── assets/
     │   └── profile.example.json    # 画像配置模板，复制为 profile.json 后填写
     ├── references/
-    │   ├── filters.md               # 薪资口径、硬排除清单、复核清单、拍板协议、打分启发式
+    │   ├── filters.md               # 薪资口径、硬排除清单、复核清单、拍板协议、打分启发式、行动边界
+    │   ├── pacing.md                # 拟人节奏、会话节律、风控熔断与禁止项
     │   └── changelog.md             # 各版本改动摘要，升级提示时按版本号提取
     └── scripts/
         ├── salary_match.py          # 单条薪资串与目标带是否有交集判定
@@ -64,6 +67,7 @@ boss-job-apply-repo/
         ├── ledger.py                # 台账初始化、已投/已跳过追加、去重、统计
         ├── build_decision_sheet.py  # 待定池 → 含完整 JD 的拍板表 xlsx
         ├── parse_annotation.py      # 解析标注表，拆 apply / exclude / blank
+        ├── pacing_plan.py           # 按动作随机生成等待表（限速 + 休息 + 时段顺延）
         └── version_check.py         # 对比本地与上游版本，输出升级提示与改动摘要
 ```
 
@@ -243,6 +247,35 @@ boss-job-apply-repo/
 
 > 当日各方向沟通份数的分布属于本人实战统计，只写进本地 `profile.json` 或复盘小结，不固化到技能模板。
 
+#### `pacing` —— 拟人操作节奏（重要）
+
+| 字段 | 含义 | 默认/填写说明 |
+| --- | --- | --- |
+| `enabled` | 是否启用拟人节奏 | `true`；关掉等于机械点击，不建议 |
+| `mode` | 速度档位 | `standard`（默认，约 20 条/时）；`conservative` 约 12 条/时（新号/被验证过）；`active` 约 30 条/时（仅长期无验证） |
+| `action_ranges` | 各动作等待区间（秒） | 按动作给 `[最小, 最大]`，每次从这里随机取；禁止写死常量 |
+| `session_minutes` | 单次连续操作时长 | 由档位给定（conservative 20–30 / standard 25–35 / active 35–45 分钟）；显式填写可覆盖 |
+| `rest_minutes` | 休息时长 | 由档位给定（8–15 / 6–12 / 5–10 分钟），休息期间不做任何页面操作 |
+| `hourly_greet_cap` | 每小时打招呼上限 | 由档位给定（12 / 20 / 30 条），显式填写可覆盖 |
+| `active_hours` | 活跃时段 | 默认 `09:00-21:30`，窗口外不发打招呼 |
+| `cards_review_per_greet` | 每投一条前浏览几张卡片 | 默认 3，用于形成自然的浏览轨迹 |
+| `daily_hard_cap` | 当日硬上限 | 默认 100，作为 `daily_goal` 的兜底 |
+| `ramp_up_note` | 梯度放量提醒 | 新账号先 conservative 跑 3 天（15 → 25 → 40 条/日），无验证再切 standard |
+
+> 预估耗时：`standard` 下 30 条约 1.5 小时、100 条约 5–6 小时；`conservative` 100 条约 8 小时以上；`active` 30 条约 1 小时。用 `python scripts/pacing_plan.py --greets 30 --mode standard` 可以按你的档位精确算出时间表。
+
+#### `risk_guard` —— 风控熔断
+
+| 字段 | 含义 | 默认/填写说明 |
+| --- | --- | --- |
+| `stop_on` | 停机信号清单 | 验证码、滑块、设备/人脸验证、操作过于频繁、访问异常、账号风险、沟通受限、发送失败 |
+| `cooldown_minutes` | 冷却时长 | 默认 120 分钟；冷却后当日剩余份额减半 |
+| `max_triggers_per_day` | 当日熔断上限 | 默认 2 次，达到即当日终止自动投递 |
+| `stop_day_on_second_trigger` | 二次熔断是否收工 | `true` |
+| `never_bypass_verification` | 是否允许过验证 | 必须 `true`（不允许） |
+| `no_parallel_tabs` / `no_unsupported_api` | 禁止并发与私有接口 | 保持 `true` |
+| `log_file` | 熔断事件日志 | 工作目录下 `risk_events.jsonl` |
+
 #### `profile` —— 本人简历事实（供复核对照）
 
 | 字段 | 含义 |
@@ -288,6 +321,7 @@ boss-job-apply-repo/
 | --- | --- | --- |
 | §0 打开浏览器与登录核验 | 导航到岗位页，确认登录态；异常交本人接管 | — |
 | §0.2 版本自检 | 对比本地与上游版本，有新版本时提示升级并附改动摘要；未确认前不覆盖本地 | — |
+| §0.3 拟人节奏与风控熔断 | 全流程按随机间隔、分段滚动、阅读停留操作；命中验证/限流信号立即停机交本人 | `risk_events.jsonl` |
 | §1 复盘昨日岗位与职责 | 回看昨日已沟通岗位的职责/JD 与回复情况，归纳结论回写 `profile.json`；`ledger.py status` 看累计 | `review_yesterday.json` |
 | §2 关键词轮转检索采集 | 按 `positions` 顺序轮转；单关键词滚动到底 + 翻遍末页全量采集；采完进入复核投递闭环再换下一个；`applied` 达标停止 | `candidates.json` |
 | §3 预筛与排序 | 台账去重、标题/主体/活跃度/薪资预筛，打分排序切批次 | `ranked.json`、`batch.json` |
@@ -301,6 +335,12 @@ boss-job-apply-repo/
 ```bash
 # 版本自检（启动投递任务前先跑）
 python scripts/version_check.py
+
+# 生成拟人节奏等待表（按份数；逐条照表等待）
+python scripts/pacing_plan.py --greets 12 --profile profile.json --seed 42
+
+# 查某个动作的推荐停留区间
+python scripts/pacing_plan.py --action read_jd
 
 # 台账初始化（首次）
 python scripts/ledger.py init
@@ -319,6 +359,49 @@ python scripts/parse_annotation.py --sheet decision_sheet_20261123_batch1.xlsx -
 python scripts/ledger.py status
 ```
 
+### 7.1 拟人节奏与风控熔断（务必按此跑）
+
+投递流水线在网页端必须像真人在浏览、阅读、决策。完整规范见技能内 `references/pacing.md`，参数在 `profile.json` 的 `pacing` / `risk_guard`。
+
+**节奏怎么做**
+
+| 动作 | 停留/间隔 | 要点 |
+| --- | --- | --- |
+| 输入搜索词后 | 1.5–4 秒 | 等结果渲染，别刚出列表就滚 |
+| 单次滚动 | 0.8–2.5 秒 | 每次 300–600px，停住看卡片；禁止一步到底 |
+| 读一张卡片 | 1.5–4 秒 | 看标题、公司、活跃标签 |
+| 翻页 | 3–8 秒 | 点前回看页尾，翻完停住 |
+| 打开详情 | 2–5 秒 | 等 JD 渲染 |
+| 读 JD | 8–20 秒 | 越长越久；不读完不打招呼 |
+| 打招呼前 / 后 | 3–7 秒 / 4–10 秒 | 点前确认，点后看结果，不立刻跳走 |
+| 两条打招呼之间 | 档位决定：conservative 2–5 分钟 / standard 1–2.5 分钟 / active 40–90 秒 | 思考/浏览间隙，别一分钟连投三条 |
+| 会话 | 到档位时长即休息（约 20–45 分钟操作 / 5–15 分钟休息） | 休息期间不做任何页面操作 |
+| 每小时上限 | conservative 12 / standard 20 / active 30 条 | 账号敏感往下降一档 |
+| 活跃时段 | 默认 09:00–21:30 | 窗口外不发打招呼 |
+
+需要一份确定的节奏表时，跑：
+
+```bash
+python scripts/pacing_plan.py --greets 12 --profile profile.json --seed 42
+python scripts/pacing_plan.py --greets 30 --mode standard --seed 42   # 临时切档看耗时
+```
+
+输出里给了每条打招呼的时刻、每步该等多少秒、限速等待与会话休息；脚本只算等待值，不操作页面。
+
+**熔断怎么做（最高优先级）**
+
+出现任一信号：验证码、滑块、点选/设备/人脸验证、安全验证页；「操作过于频繁」「请稍后再试」「访问异常」「账号存在风险」；「立即沟通」变灰、打招呼被吞、消息发送失败；被强制跳回登录页——**立即停机**：
+
+1. 保留页面原状，不刷新、不试探、不重试；
+2. 把信号原文与当时动作如实报给你，由你决定人工验证后继续还是当日收工；
+3. 可继续时冷却 120 分钟，当日剩余份额减半；
+4. 当日熔断满 2 次即当日终止；
+5. 事件写入 `risk_events.jsonl` 供复盘。
+
+**绝不做**：过验证码/破滑块、伪造设备或 UA、换 IP/代理池、多账号轮投、调未公开接口、并发多标签批量点、被拦后加速冲量、降门槛凑份数。
+
+> 如实说明：以上措施只能**降低**被风控的概率，不能保证账号不被限制。平台规则、账号历史、同网络环境行为都会影响判定，风险由使用者承担。首次使用请按 `pacing.ramp_up_note` 梯度放量（约 15 → 25 → 40 条/日），账号一旦受限立即停用本技能并按平台申诉流程处理。
+
 ## 八、脚本命令参考
 
 | 脚本 | 典型命令 | 作用 |
@@ -328,6 +411,7 @@ python scripts/ledger.py status
 | `ledger.py` | `python scripts/ledger.py init / status / applied-append / skip-append / done` | 台账初始化、统计、追加已投/已跳过、输出已完成 eid 集合 |
 | `build_decision_sheet.py` | `python scripts/build_decision_sheet.py --input hold_batch.json --out decision_sheet_<日期>_batch<N>.xlsx` | 待定池生成拍板表 xlsx（完整 JD 在内，决策列留空） |
 | `parse_annotation.py` | `python scripts/parse_annotation.py --sheet decision_sheet_<日期>_batch<N>.xlsx --out annotation_result_<批次>.json` | 读取标注结果，拆 `apply` / `exclude` / `blank` 三组 |
+| `pacing_plan.py` | `python scripts/pacing_plan.py --greets 12 --profile profile.json` / `--action read_jd` | 按动作区间随机生成等待表，含每小时限速等待、会话休息与时段顺延；只给数值不操作页面 |
 | `version_check.py` | `python scripts/version_check.py`（可选 `--repo`、`--branch`） | 对比本地与上游版本；有新版本时输出版本号与改动摘要，网络不可达时跳过不阻断 |
 
 台账追加示例：
@@ -398,6 +482,13 @@ python scripts/ledger.py skip-append --eid EID --reason "排除原因" --company
 
 完整条目见技能内 `references/changelog.md`，这里列出主要版本：
 
+### 1.3.0 — 2026-11-23
+
+- 新增拟人操作规范 `references/pacing.md`：动作随机间隔、分段滚动、详情页阅读停留、打招呼前后停顿与 2–5 分钟间隙、每小时上限、连续 20–30 分钟休息、只在活跃时段发起。
+- 新增风控熔断：命中验证码/滑块/设备验证/「操作过于频繁」/按钮变灰/发送失败等信号立即停机交本人，冷却 120 分钟，当日满 2 次终止；禁止过验证、伪造设备/IP/UA、多账号、并发批量、降门槛凑量。
+- 新增脚本 `pacing_plan.py`：按动作区间随机生成等待表（含限速等待、会话休息与跨时段顺延）。
+- `profile.example.json` 新增 `pacing` 与 `risk_guard` 配置块；`pacing` 提供 conservative / standard / active 三档（默认 standard，约 20 条/时），新号用 conservative 梯度放量。
+
 ### 1.2.0 — 2026-11-23
 
 - 新增关键词轮转采集闭环：按 `positions` 顺序逐个搜索，每个关键词滚动到底、翻遍全部页，采完走完预筛/复核/投递闭环后再换下一个；禁止只看首屏或前几页截断采集。
@@ -425,7 +516,10 @@ python scripts/ledger.py skip-append --eid EID --reason "排除原因" --company
 - 采集走浏览器自动化，Python 脚本只做本地去重、排序、台账、制表等后处理；不写爬虫、不调用未公开接口；
 - 遇到验证码、扫码、设备验证、登录态失效：停下手头操作交本人接管，不绕过；
 - 个人信息（姓名、联系方式、简历项目、公司黑名单）只进本地 `profile.json` 工作目录，不写入技能文件、不提交仓库；
-- 控制操作频率，遵守 BOSS 平台规则与用户协议；不批量骚扰招聘方。
+- 控制操作频率，遵守 BOSS 平台规则与用户协议；不批量骚扰招聘方；
+- 全程按 `references/pacing.md` 拟人节奏执行（随机间隔、分段滚动、阅读停留、档位限速、强制休息）；命中风控信号立即停机交本人，冷却后减半，当日熔断达上限收工；
+- 绝不自动过验证码/滑块、不伪造设备或 UA、不换 IP/代理池、不多账号轮投、不调未公开接口、不并发批量打招呼；
+- 节奏与熔断只能降低风控概率，**不能保证账号不被限制**；账号一旦受限立即停用本技能并按平台流程申诉。
 
 ## 十四、常见问题 FAQ
 
@@ -461,6 +555,18 @@ A：可以。只要宿主能加载外部指令文件（系统提示/项目规则
 
 **Q：启动时提示有新版本是怎么回事？会自动覆盖我的技能吗？**
 A：`version_check.py` 对比本地 `VERSION` 与上游版本后给出的提示，附改动摘要；不会自动覆盖本地技能目录，需你确认后按第十一节的步骤升级。本地 `profile.json`、台账等工作目录产物不受升级影响。
+
+**Q：一天投多少比较安全？**
+A：没有绝对安全的数字。默认 `standard` 档约 20 条/小时（30 条约 1.5 小时、100 条约 5–6 小时）；新号或近期被验证过的先用 `conservative`（约 12 条/时）跑 3 天梯度放量（15 → 25 → 40 条/日），无验证再切档。把 `daily_goal` 直接设成 100 属高强度，务必随时按熔断规则停手，别为了凑数硬跑。
+
+**Q：12 条/小时是不是太慢了？**
+A：那是 `conservative` 档，专门留给新号或被验证过的账号。稳定账号在 `profile.json` 把 `pacing.mode` 改成 `standard`（约 20–23 条/时）即可，30 条约 1.5 小时；确认长期没验证过再用 `active`（约 30 条/时）。改完先跑前 20 条观察有没有弹验证，有就立刻回退。
+
+**Q：被弹验证码 / 提示「操作过于频繁」怎么办？**
+A：立即停手，把当前页面原样留着，不刷新、不重点、不反复试；技能会把信号写进 `risk_events.jsonl` 并提示冷却 120 分钟，当日第二次熔断就收工。你人工完成验证后可以继续，但当日剩余份额减半；如果反复出现，说明这个量级不适合当前账号。
+
+**Q：能不能帮我过验证码 / 换个 IP 继续？**
+A：不能。过验证码、破滑块、伪造设备或 UA、换 IP/代理池、多账号轮投、调未公开接口都在本技能的禁止项里，这类操作等于拿账号冒险，不做。
 
 **Q：什么时候可以不用再给我发拍板样本？**
 A：当已标注样本达到 `saturation.min_annotated_samples` 且主要方向/栈/主体类型都有样本覆盖后，同类已知岗位可由技能按学到的口径自行判定；遇到没覆盖过的新场景，仍会生成拍板表交你标注。硬排除类别任何时候都不会自动放行。

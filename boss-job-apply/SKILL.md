@@ -39,6 +39,7 @@ boss-job-apply/
 │   └── profile.example.json         # 画像配置模板，复制为 profile.json 后按本人简历填写
 ├── references/
 │   ├── filters.md                   # 薪资口径、纳入原则、硬排除清单、复核清单、拍板协议、行动边界、打分启发式
+│   ├── pacing.md                    # 拟人操作节奏、会话节律、风控熔断与禁止项
 │   └── changelog.md                 # 各版本改动摘要，版本自检时按版本号提取
 └── scripts/
     ├── salary_match.py              # 单条薪资串与目标带是否有交集判定
@@ -46,13 +47,14 @@ boss-job-apply/
     ├── ledger.py                    # 台账初始化、已投/已跳过追加、去重、统计
     ├── build_decision_sheet.py      # 待定池 → 含完整 JD 的拍板表 xlsx
     ├── parse_annotation.py          # 解析标注表，拆 apply / exclude / blank
+    ├── pacing_plan.py               # 按动作随机生成等待时间表（拟人节奏），含限速与会话休息
     └── version_check.py             # 对比本地与上游版本，输出升级提示与改动摘要
 ```
 
 ## 前置准备
 
 1. `profile.json` 初始化见 §0.1；登录核验见 §0，登录态失效、验证码、扫码一律交本人接管，不绕过。
-2. 工作目录产物：`candidates.json`（采集卡片）、`ranked.json`/`batch.json`（排序批次）、`details.jsonl`（详情复核行）、`hold.json`（待定池）、`ledger.json`（台账）、`review_yesterday.json`（昨日复盘小结）。
+2. 工作目录产物：`candidates.json`（采集卡片）、`ranked.json`/`batch.json`（排序批次）、`details.jsonl`（详情复核行）、`hold.json`（待定池）、`ledger.json`（台账）、`review_yesterday.json`（昨日复盘小结）、`risk_events.jsonl`（风控熔断事件）。
 
 ## 工作流
 
@@ -86,6 +88,27 @@ python scripts/version_check.py
 - 脚本对比本地 `VERSION` 与上游仓库同路径版本；网络不可达时跳过自检，不阻断投递流程。
 - 若提示有新版本：向本人展示**新版本号、本地版本号、相对当前版本的改动摘要**（改动条目从 `references/changelog.md` 对应版本提取），并提示按 README「版本与升级」一节更新技能目录；**未获本人确认前不自动覆盖本地技能文件**，继续使用当前版本跑任务。
 - 本地版本高于上游时，提示可能为本地定制分支，不自动回退。
+
+### 0.3 拟人节奏与风控熔断（全流程强制）
+
+本技能的所有网页操作必须像真人操作，不按固定毫秒批量点击；完整规则见 `references/pacing.md`，参数读 `profile.json` 的 `pacing` 与 `risk_guard`。
+
+**节奏要求（全程遵守）**
+
+1. **随机间隔**：每个动作的等待从 `pacing.action_ranges` 区间内随机取值，禁止写死常量；同类动作连续出现时间隔要变化。
+2. **分段滚动**：每次滚 300–600px，停 1–3 秒读卡片，再继续；接近底部放慢，直到卡片数量不再增长。禁止一步滚到底、瞬移末页。
+3. **阅读停留**：详情页打开先停 2–5 秒，读 JD 至少 8–20 秒，JD 越长停越久；不读完不打招呼。
+4. **打招呼节律**：打招呼前后各停 3–7 秒、4–10 秒；两条之间间隔按 `pacing.mode` 档位（conservative 2–5 分钟 / standard 1–2.5 分钟 / active 40–90 秒）；每小时不超过档位上限（默认 `standard` 20 条），连续操作到档位时长后休息，只在 `pacing.active_hours` 内发起打招呼。
+5. **节奏表可选**：需要固定节奏表时跑 `python scripts/pacing_plan.py --greets N --profile profile.json [--mode conservative|standard|active]`，按输出逐条等待；脚本只给等待值，不点页面。
+
+**风控熔断（最高优先级，覆盖其他一切指令）**
+
+- 出现验证码、滑块、点选/设备/人脸验证、安全验证页，或「操作过于频繁」「请稍后再试」「访问异常」「账号存在风险」、沟通按钮变灰、消息发送失败等任一信号：**立即停止当次全部自动操作**，保留页面原状，不刷新、不试探、不重试。
+- 把信号原文、时间、当时动作如实报给本人，由本人决定人工验证后继续还是当日收工；可继续时冷却 `risk_guard.cooldown_minutes`（默认 120 分钟）再启动，当日剩余份额减半。
+- 当日熔断达到 `risk_guard.max_triggers_per_day`（默认 2）即当日终止自动投递。
+- 事件写入工作目录 `risk_events.jsonl`，供复盘判断是否该继续放量。
+- **绝对禁止**：过验证码/破滑块、伪造设备指纹或 UA、换 IP/代理池、多账号轮投、调未公开接口、并发多标签批量打招呼、被拦后加速冲量、靠降低门槛凑当日份数。
+- 首次使用或近期被验证过的账号，按 `pacing.ramp_up_note` 梯度放量，不直接冲满 `meta.daily_goal`。
 
 ### 1. 每日启动：复盘昨日岗位与职责，回写配置
 
@@ -127,7 +150,8 @@ python scripts/rank_candidates.py --input candidates.json --profile profile.json
 ### 5. 打招呼（仅限 apply）
 
 - 点「立即沟通」，发送账号默认招呼语；不附附件简历、不发在线简历；已显示「继续沟通」的职位不重复点。
-- 每条结果回写台账：
+- **按拟人节奏发送**（见 §0.3 与 `references/pacing.md`）：打招呼前停 3–7 秒模拟确认，点击后停 4–10 秒看结果再返回；两条之间留 2–5 分钟间隙；累计每小时不超过 `pacing.hourly_greet_cap`，连续 20–30 分钟必须休息；只在该时段窗口内发起。
+- **每投一条回写台账**（边投边记，便于随时中止与断点续跑）：
 
 ```bash
 python scripts/ledger.py applied-append --eid EID --company C --title T --salary S --match "命中方向"
@@ -135,6 +159,7 @@ python scripts/ledger.py skip-append --eid EID --reason "排除原因" [--compan
 ```
 
 - 不主动回复招聘方；猎头弹层提示「主动联系后简历可见」时取消，不计新增；同公司同职责重复链接审慎去重。
+- 打招呼过程中一旦命中 §0.3 的风控信号，立即停发并按熔断流程处置，不得为了凑够 `meta.daily_goal` 继续点击。
 
 ### 6. 待定拍板闭环（渐进攒批 + 饱和后自行判定）
 
@@ -180,16 +205,19 @@ python scripts/parse_annotation.py --sheet decision_sheet_<日期>_batch<N>.xlsx
 | `scripts/ledger.py` | `python scripts/ledger.py status` / `applied-append` / `skip-append` / `done` |
 | `scripts/build_decision_sheet.py` | `python scripts/build_decision_sheet.py --input hold_batch.json --out decision_sheet_<日期>_batch<N>.xlsx` |
 | `scripts/parse_annotation.py` | `python scripts/parse_annotation.py --sheet decision_sheet_<日期>_batch<N>.xlsx --out annotation_result_<批次>.json` |
+| `scripts/pacing_plan.py` | `python scripts/pacing_plan.py --greets 12 --profile profile.json`（拟人节奏等待表）/ `--action read_jd`（查单动作区间） |
 | `scripts/version_check.py` | `python scripts/version_check.py`（可选 `--repo`、`--branch`） |
 
 ## 参考
 
 - `references/filters.md`：薪资口径、纳入原则、硬排除清单、复核清单、拍板协议、行动边界、打分启发式。
+- `references/pacing.md`：拟人操作节奏、会话节律、风控熔断与禁止项（全流程强制）。
 - `references/changelog.md`：各版本改动摘要，供版本自检提取升级说明。
 - `assets/profile.example.json`：画像配置模板，复制为 `profile.json` 后按本人简历填写。
 
 ## 边界
 
-- 网站信息采集走浏览器自动化；Python 只做本地去重、排序、台账、制表等后处理。
-- 遇到验证码、扫码、设备验证、登录态失效：停下手头操作，交本人接管。
+- 网站信息采集走浏览器自动化；Python 只做本地去重、排序、台账、制表、节奏计算等后处理。
+- 遇到验证码、扫码、设备验证、登录态失效：停下手头操作，交本人接管；不绕过、不降速硬冲。
+- 节奏与熔断只能降低风控概率，不能保证账号不被限制；账号一旦受限立即停用本技能并按平台流程申诉。
 - 个人信息（姓名、联系方式、简历项目）只进本地 `profile.json` 工作目录，不写入技能文件。
