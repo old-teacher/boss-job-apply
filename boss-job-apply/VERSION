@@ -1,0 +1,7 @@
+version: 1.1.0
+name: boss-job-apply
+display_name: boss姥爷
+repo: old-teacher/boss-job-apply
+branch: main
+skill_subdir: boss-job-apply
+released: 2026-11-23
