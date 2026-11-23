@@ -52,7 +52,9 @@
       "greet_pre": [3.0, 7.0],
       "greet_post": [4.0, 10.0],
       "back_to_list": [2.0, 5.0],
-      "keyword_switch": [10.0, 30.0]
+      "keyword_switch": [10.0, 30.0],
+      "detail_interval": [4.0, 8.0],
+      "batch_rest": [120.0, 180.0]
     },
     "active_hours": "09:00-21:30",
     "cards_review_per_greet": 3,
@@ -70,7 +72,11 @@
     "never_bypass_verification": true,
     "no_parallel_tabs": true,
     "no_unsupported_api": true,
-    "log_file": "risk_events.jsonl"
+    "log_file": "risk_events.jsonl",
+    "count_state": "触发计数写入台账状态（verify_count / circuit_broken），按自然日计数、每日启动先清零；终止标志为 true 时当日流程在入口即终止",
+    "first_trigger_action": "第一次触发：停止全部自动导航/采集/招呼，不刷新验证页、不换 IP/UA/账号、不绕过；交本人接管，冷却 cooldown_minutes 后经确认降速恢复",
+    "second_trigger_action": "第二次触发：当日彻底熔断，停止全部检索/复核/招呼，不重试、不导航任何详情，剩余目标顺延次日",
+    "trace_policy": "从列表点卡片进详情（保留列表来源），返回列表再进下一条；禁止脚本化深链批量直跳 job_detail"
   },
   "decision": {
     "_help": "待定岗位拍板与学习饱和配置。hold_batch_size：过程中每攒够该数量就出一批拍板表交本人标注，不必等当日全部跑完。saturation：标注样本积累到阈值且主要场景被覆盖后，同类已知场景可按学到的口径自行判定；未覆盖的新场景仍进拍板表；硬排除类别任何时候都不自动放行。",
