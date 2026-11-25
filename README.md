@@ -503,6 +503,11 @@ python scripts/ledger.py skip-append --eid EID --reason "排除原因" --company
 
 完整条目见技能内 `references/changelog.md`，这里列出主要版本：
 
+### 1.6.2 — 2026-11-25
+
+- 配置分层落地补齐：精简正本 / 历史记录库 / 工作目录产物三类材料的归属与回写去向写进执行参考与模板；流水写历史库、口径变更才回正本，台账/拍板表/标注结果/复盘小结/风控事件/外包知识库不回写正本、不进启动上下文。
+- 画像模板新增 `config_sources`（`primary_doc` / `history_doc` / `split_rule`）占位字段；README 补三类材料对照清单与无在线文档时的本地兜底对应关系。
+
 ### 1.6.1 — 2026-11-25
 
 - 薪资上限硬线：岗位薪资上限 > `max_hi`（默认 35K）一律不投，即使与目标区间有交集；`salary_match.py` 新增 `--max-hi`，`rank_candidates.py` 列表预筛一并剔除。
