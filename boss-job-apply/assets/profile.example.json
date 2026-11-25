@@ -20,7 +20,7 @@
     "keywords_hit": ["<命中关键词 1>", "<命中关键词 2>"],
     "keywords_bonus": ["<加分关键词 1>", "<加分关键词 2>"],
     "excluded_companies": ["<不想投的公司全称；留空数组表示不按公司名排除>"],
-    "exclusion_keywords_title": ["架构师", "architect", "负责人", "总监", "leader", "Leader", "CTO", "售前", "解决方案", "外包", "驻场", "派遣", "猎头", "代招", "实习", "应届", "日薪"],
+    "exclusion_keywords_title": ["架构师", "architect", "负责人", "总监", "leader", "Leader", "CTO", "售前", "解决方案", "外包", "驻场", "派遣", "猎头", "人才顾问", "代招", "实习", "应届", "日薪"],
     "activity": {
       "max_days": 3,
       "allowed_labels": ["刚刚活跃", "今日活跃", "3日内活跃"],
