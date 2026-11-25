@@ -98,6 +98,7 @@ python scripts/version_check.py
 
 1. **随机间隔**：每个动作的等待从 `pacing.action_ranges` 区间内随机取值，禁止写死常量；同类动作连续出现时间隔要变化。
 2. **分段滚动**：每次滚 300–600px，停 1–3 秒读卡片，再继续；接近底部放慢，直到卡片数量不再增长。禁止一步滚到底、瞬移末页。
+2a. **悬停后再点击**：点卡片或「立即沟通」按钮前，先悬停到目标上、小幅移动并停顿 `hover_pre_click`（默认 0.5–1.5 秒）再按下，按下后随机停顿 `click_post`（默认 1–2.5 秒）再读结果；禁止连点、禁止坐标猛戳、禁止无悬停直按。
 3. **阅读停留**：详情页打开先停 2–5 秒，读 JD 至少 8–20 秒，JD 越长停越久；不读完不打招呼。
 4. **打招呼节律**：打招呼前后各停 3–7 秒、4–10 秒；两条之间间隔按 `pacing.mode` 档位（conservative 2–5 分钟 / standard 1–2.5 分钟 / active 40–90 秒）；每小时不超过档位上限（默认 `standard` 20 条），连续操作到档位时长后休息，只在 `pacing.active_hours` 内发起打招呼。
 5. **节奏表可选**：需要固定节奏表时跑 `python scripts/pacing_plan.py --greets N --profile profile.json [--mode conservative|standard|active]`，按输出逐条等待；脚本只给等待值，不点页面。
@@ -122,7 +123,7 @@ python scripts/version_check.py
 
 ### 0.5 启动前置硬约束（每次开工第一步，先于检索与复盘）
 
-- **每次启动投递任务，第一步先读上下文配置正本**：先读取精简配置正本（飞书《张大帅 BOSS 求职全局配置（精简正本）》）与本地台账 `ledger.json`/当日流水，逐条核对求职者画像、轮转方向词清单、18–25K 交集薪资口径、硬排除清单、活跃度门槛、技术栈匹配口径、动作边界与风控熔断规则；确认口径与本地记录一致、登录态有效后，才允许开始检索。
+- **每次启动投递任务，第一步先读上下文配置正本**：先读取精简配置正本（飞书《张大帅 BOSS 求职全局配置（精简正本）》）与本地台账 `ledger.json`/当日流水，逐条核对求职者画像、轮转方向词清单、薪资交集口径与 `max_hi` 上限硬线、硬排除清单、活跃度门槛、技术栈匹配口径、动作边界与风控熔断规则；确认口径与本地记录一致、登录态有效后，才允许开始检索。
 - **配置分层，防止上下文稀释**：配置分两份文档。精简正本只放现行规则与画像，启动时全文必读；历史记录库只存每日流水、复盘轮次与误投留痕，需要时按日期检索，不进启动上下文。对话中的新口径当天写入精简正本；每日投递结果只写历史记录库。宿主中未配置该文档时，用 `profile.json` 加本地规则文件充当正本，并在 README 注明对应关系。
 - 配置未读、或本地台账/脚本口径与配置正本冲突时，先回配置正本核对，**不凭记忆开工**；配置确认无误后再进入 §1 复盘昨日岗位。
 - 配置正本中「启动协议」与「每日投递流程」为最高优先级执行约束，任何一轮投递都不得跳过或事后补读。
@@ -219,7 +220,7 @@ python scripts/parse_annotation.py --sheet decision_sheet_<日期>_batch<N>.xlsx
 
 | 脚本 | 典型命令 |
 | --- | --- |
-| `scripts/salary_match.py` | `python scripts/salary_match.py "20-25K" --lo 18 --hi 25` |
+| `scripts/salary_match.py` | `python scripts/salary_match.py "20-25K" --lo 18 --hi 25 --max-hi 35` |
 | `scripts/rank_candidates.py` | `python scripts/rank_candidates.py --input candidates.json --profile profile.json --ledger ledger.json --out ranked.json --batch 12` |
 | `scripts/ledger.py` | `python scripts/ledger.py status` / `applied-append` / `skip-append` / `done` |
 | `scripts/build_decision_sheet.py` | `python scripts/build_decision_sheet.py --input hold_batch.json --out decision_sheet_<日期>_batch<N>.xlsx` |

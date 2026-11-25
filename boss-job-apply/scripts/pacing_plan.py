@@ -28,6 +28,8 @@ DEFAULT_RANGES = {
     "read_jd": (8.0, 20.0),
     "greet_pre": (3.0, 7.0),
     "greet_post": (4.0, 10.0),
+    "hover_pre_click": (0.5, 1.5),
+    "click_post": (1.0, 2.5),
     "back_to_list": (2.0, 5.0),
     "between_greets": (120.0, 300.0),
     "keyword_switch": (10.0, 30.0),
@@ -110,7 +112,7 @@ def load_pacing(profile_path, mode_override=""):
 
 def estimate_per_hour(pacing, ranges):
     """按平均停留估算每小时可打招呼条数（用于判断档位是否过慢）。"""
-    fixed = ["open_detail", "read_jd", "greet_pre", "greet_post", "back_to_list"]
+    fixed = ["open_detail", "read_jd", "greet_pre", "greet_post", "click_post", "back_to_list"]
     cycle = sum(sum(ranges.get(a, (1.0, 2.0))) / 2.0 for a in fixed)
     cards = max(1, int(pacing.get("cards_review_per_greet", 3) or 3))
     cycle += cards * (sum(ranges["card_read"]) / 2.0 + sum(ranges["scroll"]) / 2.0)
@@ -172,6 +174,7 @@ def build_plan(greets, pacing, ranges, start_time, seed, mode="conservative"):
             base_cycle += sec
             return sec
 
+        add("hover_pre_click")
         add("open_detail")
         add("read_jd")
         add("greet_pre")
@@ -200,6 +203,7 @@ def build_plan(greets, pacing, ranges, start_time, seed, mode="conservative"):
             steps.append({"action": "rate_gate_wait", "minutes": round(wait_min, 1)})
             greet_start += wait_min
 
+        add("click_post")
         add("greet_post")
         add("back_to_list")
         cards = int(pacing.get("cards_review_per_greet", 3) or 3)

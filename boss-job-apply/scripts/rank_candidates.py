@@ -106,8 +106,12 @@ def main():
         # 薪资预筛（无法解析的留到详情页复核）
         lo, hi = parse(x.get("salary", ""))
         if lo is not None:
+            max_hi = band.get("max_hi", 35)
             if not (lo <= band["hi"] and hi >= band["lo"]):
                 dropped.append({**x, "reason": f"薪资无交集：{x.get('salary','')}"})
+                continue
+            if max_hi and hi > max_hi:
+                dropped.append({**x, "reason": f"薪资上限超过 {max_hi}K 硬线：{x.get('salary','')}"})
                 continue
         kept.append(x)
 

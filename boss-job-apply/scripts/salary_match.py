@@ -35,6 +35,8 @@ def main():
     ap.add_argument("salary")
     ap.add_argument("--lo", type=float, default=18)
     ap.add_argument("--hi", type=float, default=25)
+    ap.add_argument("--max-hi", type=float, default=35,
+                    help="薪资上限硬线：岗位上限超过该值一律不投（默认 35K）；传 0 关闭")
     a = ap.parse_args()
 
     lo, hi = parse(a.salary)
@@ -45,7 +47,10 @@ def main():
         sys.exit(2)
 
     overlap = lo <= a.hi and hi >= a.lo
-    if overlap:
+    if a.max_hi and hi > a.max_hi:
+        overlap = False
+        reason = f"上限 {hi:g}K > {a.max_hi:g}K 硬线，不投"
+    elif overlap:
         reason = f"区间 {lo:g}-{hi:g}K 与 {a.lo:g}-{a.hi:g}K 有交集"
     elif hi < a.lo:
         reason = f"上限 {hi:g}K < {a.lo:g}K，无交集"
