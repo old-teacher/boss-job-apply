@@ -5,6 +5,7 @@
 ## 1.6.2 — 2026-11-25
 
 - **配置分层落地补齐（SKILL.md §0.5/§7、filters.md §8、README、`profile.example.json`）**：把「精简正本 / 历史记录库 / 工作目录产物」三类材料的归属与回写去向写进执行参考与模板——正本只放现行规则与画像、启动必读；历史库只存每日流水、复盘轮次与误投留痕；台账、拍板表、标注结果、复盘小结、风控事件、外包知识库属工作目录产物，不进启动上下文、不回写正本、不提交仓库。模板新增 `config_sources`（`primary_doc` / `history_doc` / `split_rule`）占位字段；README 补三类材料对照清单与无在线文档时的本地兜底对应关系。
+- **Release 命名约定（SKILL.md §0.2、`profile.example.json.release`、README §11.1）**：GitHub Release 标题只写版本号（如 `v1.6.2`），不带中文描述；改动摘要写进 Release 正文。
 
 ## 1.6.1 — 2026-11-25
 

@@ -478,6 +478,7 @@ python scripts/ledger.py skip-append --eid EID --reason "排除原因" --company
 ### 11.1 版本机制
 
 - 技能根目录 `VERSION` 记录当前版本号（语义化 `major.minor.patch`）、上游仓库与分支；`references/changelog.md` 记录每个版本相对上一版的改动摘要。
+- **Release 命名**：GitHub Release 标题只写版本号（如 `v1.6.2`），不带中文描述；改动摘要写进 Release 正文。
 - 每次启动投递任务前，`version_check.py` 读取本地 `VERSION`，拉取上游仓库同路径的 `VERSION` 与 `changelog.md` 做对比：
   - 上游更新：输出新版本号、本地版本号、区间内各版本的改动条目，并提示你确认后升级；
   - 已是最新：给出确认提示；
