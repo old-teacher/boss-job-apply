@@ -102,7 +102,10 @@
     "count_state": "触发计数写入台账状态（verify_count / circuit_broken），按自然日计数、每日启动先清零；终止标志为 true 时当日流程在入口即终止",
     "first_trigger_action": "第一次触发：停止全部自动导航/采集/招呼，不刷新验证页、不换 IP/UA/账号、不绕过；交本人接管，冷却 cooldown_minutes 后经确认降速恢复",
     "second_trigger_action": "第二次触发：当日彻底熔断，停止全部检索/复核/招呼，不重试、不导航任何详情，剩余目标顺延次日",
-    "trace_policy": "从列表点卡片进详情（保留列表来源），返回列表再进下一条；禁止脚本化深链批量直跳 job_detail"
+    "trace_policy": "从列表点卡片进详情（保留列表来源），返回列表再进下一条；禁止脚本化深链批量直跳 job_detail",
+    "post_block_forced_mode": "conservative",
+    "post_block_rule": "当日命中 403/限流/验证后，解封次日首次启动强制 conservative 档，梯度放量（约 15→25→40 条/日），前 20 条放慢观察；当日剩余份额减半，无异常再经本人确认升档",
+    "driver_pacing_rule": "实战驱动脚本的所有停顿必须读 pacing.action_ranges 与档位预设，禁止写死固定毫秒短间隔；招呼间隙、每小时上限、会话休息由档位闸门兜底"
   },
   "decision": {
     "_help": "待定岗位拍板与学习饱和配置。hold_batch_size：过程中每攒够该数量就出一批拍板表交本人标注，不必等当日全部跑完。saturation：标注样本积累到阈值且主要场景被覆盖后，同类已知场景可按学到的口径自行判定；未覆盖的新场景仍进拍板表；硬排除类别任何时候都不自动放行。",
