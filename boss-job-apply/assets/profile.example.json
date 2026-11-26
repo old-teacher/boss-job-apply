@@ -29,13 +29,17 @@
       "unit": "K",
       "rule": "岗位区间与 [lo,hi] 有交集即投：岗位下限 ≤ hi 且岗位上限 ≥ lo，边界值包含；另设上限硬线 max_hi：岗位上限 > max_hi 一律不投（即使有交集）。示例数值，请按本人期望薪资替换"
     },
-    "search_salary_filter": {
-      "_help": "检索侧必填筛选，仅用于收窄列表；与 salary_band 判定口径分开。最终是否可投仍按 salary_band 交集 + max_hi 判定，目标薪资不变。",
+    "search_filters": {
+      "_help": "检索侧必填筛选，仅用于收窄列表；与 salary_band 判定口径分开。最终是否可投仍按 salary_band 交集 + max_hi 及复核清单判定，目标薪资不变。多值参数在 URL 中逗号拼接。",
       "enabled": true,
-      "label": "10-20K",
-      "url_param": "salary=405",
-      "range": [10, 20],
-      "rule": "每次搜索薪资待遇筛选固定选 10-20K（BOSS 代码 salary=405）；判定侧仍按 salary_band（18-25K 交集、上限 ≤35K），不按检索区间放宽"
+      "city": {"label": "杭州", "url_param": "city=101210100"},
+      "salary": {"label": "10-20K", "url_param": "salary=405", "range": [10, 20], "rule": "检索薪资只收窄列表，判定侧仍按 salary_band（18-25K 交集、上限 ≤35K），不按检索区间放宽"},
+      "job_type": {"label": "全职", "url_param": "jobType=1901"},
+      "experience": {"label": ["3-5年", "5-10年"], "url_param": "experience=105,106", "codes": {"3-5年": 105, "5-10年": 106}},
+      "degree": {"label": ["大专", "本科"], "url_param": "degree=202,203", "codes": {"大专": 202, "本科": 203}},
+      "scale": {"label": ["20-99人", "100-499人", "500-999人", "1000-9999人"], "url_param": "scale=302,303,304,305", "codes": {"20-99人": 302, "100-499人": 303, "500-999人": 304, "1000-9999人": 305}},
+      "position": {"label": ["Java 族", "全栈族"], "note": "由主循环关键词词表承载；面板大类选「互联网/AI」，web 端职能不另设 URL 类目参数"},
+      "rule": "每次搜索以上筛选逐项固定，缺一项不算就绪；检索条件不改变判定侧学历/经验/栈/活跃度等硬门槛口径"
     },
     "keywords_hit": ["<命中关键词 1>", "<命中关键词 2>"],
     "keywords_bonus": ["<加分关键词 1>", "<加分关键词 2>"],
