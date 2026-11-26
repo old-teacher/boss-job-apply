@@ -29,6 +29,14 @@
       "unit": "K",
       "rule": "岗位区间与 [lo,hi] 有交集即投：岗位下限 ≤ hi 且岗位上限 ≥ lo，边界值包含；另设上限硬线 max_hi：岗位上限 > max_hi 一律不投（即使有交集）。示例数值，请按本人期望薪资替换"
     },
+    "search_salary_filter": {
+      "_help": "检索侧必填筛选，仅用于收窄列表；与 salary_band 判定口径分开。最终是否可投仍按 salary_band 交集 + max_hi 判定，目标薪资不变。",
+      "enabled": true,
+      "label": "10-20K",
+      "url_param": "salary=405",
+      "range": [10, 20],
+      "rule": "每次搜索薪资待遇筛选固定选 10-20K（BOSS 代码 salary=405）；判定侧仍按 salary_band（18-25K 交集、上限 ≤35K），不按检索区间放宽"
+    },
     "keywords_hit": ["<命中关键词 1>", "<命中关键词 2>"],
     "keywords_bonus": ["<加分关键词 1>", "<加分关键词 2>"],
     "excluded_companies": ["<不想投的公司全称；留空数组表示不按公司名排除>"],
