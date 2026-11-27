@@ -6,7 +6,13 @@
     "city_code": "<城市码，从岗位页 URL 的 city 参数或页面城市选择器读取>",
     "daily_goal": 100,
     "daily_goal_note": "当日计划打招呼的岗位份数；示例 100，按本人目标调整。台账 applied 累计达到该份数即停止继续检索；未达标且关键词全部跑完时，按复盘口径扩大可选方向，不放行硬排除类别。",
-    "greeting_policy": "只发送 BOSS 默认招呼语；未获本人明确授权前不发附件简历、不发在线简历；不主动回复招聘方"
+    "greeting_policy": "只发送 BOSS 默认招呼语；未获本人明确授权前不发附件简历、不发在线简历；不主动回复招聘方",
+    "onboarding": {
+      "completed": false,
+      "source": "<questionnaire | homepage_selection | both>",
+      "captured_at": "<YYYY-MM-DD>",
+      "note": "首次使用由 §0.1 引导：本人问卷填写，或读取本人已在 BOSS 首页/筛选面板选好的条件后回填；经本人确认前不检索、不招呼。每日投递只读本 profile.json 作为画像参考，不重新臆造方向、薪资、城市与栈。"
+    }
   },
   "hard_excludes_note": "除 filters.md §3 清单外，另有两条本人硬线：① 公司规模 0-20 人（少于 20 人/20 人以下）不投；② 岗位明确招 Python 系或 Vue 系不投（Python/Vue 属辅助栈，不作独立投递方向），仅『了解/加分/优先』且 Java 为主栈时豁免",
   "release": {

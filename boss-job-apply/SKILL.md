@@ -43,6 +43,7 @@ boss-job-apply/
 │   └── changelog.md                 # 各版本改动摘要，版本自检时按版本号提取
 └── scripts/
     ├── salary_match.py              # 单条薪资串与目标带是否有交集判定
+    ├── onboard_profile.py            # 首次引导：初始化模板、回填问卷/首页选择、就绪检查、确认闸门
     ├── rank_candidates.py           # 台账去重、标题/主体/活跃度预筛、打分排序、切批次
     ├── ledger.py                    # 台账初始化、已投/已跳过追加、去重、统计
     ├── build_decision_sheet.py      # 待定池 → 含完整 JD 的拍板表 xlsx
@@ -68,14 +69,18 @@ boss-job-apply/
 
 ### 0.1 初始化 profile.json（首次使用 · 新用户引导流程）
 
-新安装本技能的用户按下面顺序走完引导，画像确认后才允许开始投递：
+新安装本技能、或工作目录缺少有效 `profile.json`（`meta.onboarding.completed=false` 或仍是模板占位符）时，按下面顺序走完引导；画像确认后才允许开始投递。每日投递只读本 `profile.json` 作为本人画像参考，不重新臆造方向、薪资、城市与栈。
 
 1. **引导登录**：先引导本人在浏览器完成 BOSS 直聘网页登录（§0）；登录态有效后才进入下一步，未登录不采集简历、不建台账。
-2. **复制模板**：把技能目录 `assets/profile.example.json` 复制到本次工作目录为 `profile.json`（技能目录路径以当前环境已安装技能的位置为准）。
-3. **从简历提取配置**：在已登录会话中打开本人主页/在线简历，采集城市、工作年限、学历、技术栈、期望薪资、求职状态；再读在线简历与附件简历的「个人优势」「项目经历」（角色、职责、所用技术栈、可量化成果）提炼成画像条目。只读本人账号可见内容，不改写 BOSS 简历，不采集未公开信息；附件简历需本人同意后再打开，不绕过查看限制。
-4. **澄清反问（拿不准必须问，不用默认值顶替）**：简历看不出、表述模糊或自相矛盾的字段，逐项反问本人，至少覆盖：投递目标方向与目标岗位名、期望薪资区间、目标城市、哪些技术栈可投/哪些不投、是否接受外包驻场、单休、特定行业、作息安排。本人当场补充的信息直接采用；禁止臆造年限、学历、技术栈、薪资、优势、项目经历与弱点。
-5. **画像确认闸门**：把提取并澄清后的画像列成条目回显给本人核对；本人确认通过后才初始化台账、进入检索与投递。本人明确拒绝填写的字段保留占位符，对应岗位在详情复核时降级人工判断，不按默认值擅自放行。
-6. `profile.json` 仅存本地工作目录，不写入技能文件、不提交任何仓库。
+2. **初始化模板**：运行 `python scripts/onboard_profile.py --init`，把技能目录 `assets/profile.example.json` 在本次工作目录创建为 `profile.json`（已存在不覆盖）。
+3. **采集画像（两条来源，可单用也可合并）**：
+   - **问卷来源**：直接反问并记录本人：目标方向/岗位关键词（如 Java、Python、后端、AI 应用）、期望薪资区间、目标城市、工作年限、学历、可投/不可投技术栈、是否接受外包驻场/单休/特定行业、作息安排。
+   - **首页选择来源**：本人已在 BOSS 首页或筛选面板选好条件时，宿主从页面面板与结果 URL 参数读取已选筛选项回填——城市（`city`）、检索薪资（`salary`）、求职类型（`jobType`）、工作经验（`experience`）、学历（`degree`）、公司规模（`scale`）、职位方向；读不到的项仍走问卷反问，不替本人猜。
+   - 在已登录会话中可再打开本人主页/在线简历，采集城市、年限、学历、技术栈、期望薪资与求职状态；读「个人优势」「项目经历」提炼画像条目。只读本人账号可见内容，不改写 BOSS 简历，不采集未公开信息；附件简历需本人同意后再打开，不绕过查看限制。
+4. **回填到本地配置**：把采集到的选择项写成 `selections.json`（字段见脚本 `--help` 与模板 `expectation.search_filters`），运行 `python scripts/onboard_profile.py --merge-selections selections.json` 合并进 `profile.json`；只覆盖显式给出的字段，不清空其他配置。
+5. **澄清反问（拿不准必须问，不用默认值顶替）**：简历看不出、表述模糊或自相矛盾的字段逐项反问本人；本人当场补充的信息直接采用；禁止臆造年限、学历、技术栈、薪资、优势、项目经历与弱点。
+6. **就绪检查与确认闸门**：先跑 `python scripts/onboard_profile.py --check`，缺失项会逐条列出；把回填后的画像跑 `--summary` 列成条目回显本人核对，确认无误后运行 `python scripts/onboard_profile.py --confirm` 置 `onboarding.completed=true`。检查不通过（仍有占位符或未确认）时不初始化台账、不检索、不招呼；本人明确拒绝填写的字段保留占位符，对应岗位在详情复核时降级人工判断，不按默认值擅自放行。
+7. **配置留存**：`profile.json` 仅存本地工作目录，不写入技能文件、不提交任何仓库；后续每日启动读取该画像，复盘结论按 §1 回写，硬排除清单不自行放宽。
 
 ### 0.2 版本自检与升级提示
 
@@ -225,6 +230,7 @@ python scripts/parse_annotation.py --sheet decision_sheet_<日期>_batch<N>.xlsx
 | 脚本 | 典型命令 |
 | --- | --- |
 | `scripts/salary_match.py` | `python scripts/salary_match.py "20-25K" --lo 18 --hi 25 --max-hi 35` |
+| `scripts/onboard_profile.py` | `--init` / `--merge-selections selections.json` / `--check` / `--confirm` / `--summary`（首次引导回填与就绪闸门） |
 | `scripts/rank_candidates.py` | `python scripts/rank_candidates.py --input candidates.json --profile profile.json --ledger ledger.json --out ranked.json --batch 12` |
 | `scripts/ledger.py` | `python scripts/ledger.py status` / `applied-append` / `skip-append` / `done` |
 | `scripts/build_decision_sheet.py` | `python scripts/build_decision_sheet.py --input hold_batch.json --out decision_sheet_<日期>_batch<N>.xlsx` |

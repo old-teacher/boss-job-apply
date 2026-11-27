@@ -2,6 +2,10 @@
 
 > 每条版本条目概括该版本相对上一版的改动点；版本自检脚本按版本号区间从本文件提取待升级版本的改动摘要。标题格式固定为 `## x.y.z`，条目用 `- ` 开头。
 
+## 1.7.1 — 2026-11-27
+
+- **首次引导画像回填（`scripts/onboard_profile.py`、SKILL.md §0.1、`profile.example.json` `meta.onboarding`）**：新增首次使用引导脚本，闭环为 `--init` 从模板建 `profile.json` → `--merge-selections` 回填问卷答案或本人已在 BOSS 首页/面板选好的筛选项（城市 `city`、检索薪资 `salary`、求职类型 `jobType`、经验 `experience`、学历 `degree`、规模 `scale`、职位方向，外加目标方向 `positions`、薪资带 `salary_band`、主栈 `main_stack`、日目标 `daily_goal`）→ `--check` 就绪闸门（占位符/未确认逐项列出，不通过退出码非 0）→ `--summary` 回显核对 → `--confirm` 置 `onboarding.completed=true`。画像未经本人确认前不检索、不打招呼；每日投递只读本 `profile.json` 作为画像参考，不重新臆造方向、薪资、城市与栈。合并只覆盖显式给出的字段，保留模板既有规则与判定口径。
+
 ## 1.7.0 — 2026-11-26
 
 - **拟人节奏纠偏（pacing.md §7.2、profile.example.json `risk_guard`、实战驱动脚本）**：复盘当日一轮连续复核 176 个详情后触发 403 访问受限（IP/账户异常，次日 20:58 恢复）。归因：深链批量直跳缺列表往返轨迹、JD 阅读停留不足、招呼间隙过短（20–40s）、滚动固定间隔、单轮无每小时上限与会话休息、档位选择偏急。整改：实战脚本停顿一律读 `pacing.action_ranges` 与档位预设，禁止写死固定毫秒短间隔；详情 JD 阅读停留 8–20 秒；两条招呼间隙回到 conservative 120–300 秒；每小时招呼上限 12 条、会话 20–30 分钟休息 8–15 分钟；滚动停顿在 0.8–2.5 秒随机；`job_detail` 深链降级为列表定位失败时的兜底，默认列表→详情→列表往返；风控事件当场落 `risk_events.jsonl`。
